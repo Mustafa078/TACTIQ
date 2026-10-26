@@ -218,39 +218,56 @@ test("casual chat is integrated into match mode", async () => {
   assert.equal(result.kind, "general");
 });
 
-test("API-Football team extraction finds Arsenal in a natural-language query", () => {
-  const candidates = app.teamSearchCandidates("Latest Arsenal matches");
-  assert.equal(candidates[0], "arsenal");
+test("Gemini extractSearchSources formats web grounding chunks with titles and domains", () => {
+  const chunks = [
+    {
+      web: {
+        uri: "https://www.bbc.com/sport/football/12345",
+        title: "Arsenal vs Tottenham Match Highlights",
+      },
+    },
+    {
+      web: {
+        uri: "https://skysports.com/football/news/6789",
+        title: "Premier League Review",
+      },
+    },
+  ];
+  const sources = app.extractSearchSources(chunks);
+  assert.equal(sources.length, 2);
+  assert.equal(sources[0].domain, "bbc.com");
+  assert.equal(sources[0].title, "Arsenal vs Tottenham Match Highlights");
+  assert.equal(sources[1].domain, "skysports.com");
 });
 
-test("API-Football search sanitizes match filler and punctuation", () => {
-  assert.equal(
-    app.sanitizeApiFootballSearch(
-      "  Arsenal vs Southampton - Premier League!  ",
-    ),
-    "arsenal southampton premier league",
-  );
-  assert.equal(
-    app.sanitizeApiFootballSearch("Manchester United @ Old-Trafford"),
-    "manchester united oldtrafford",
-  );
+test("Gemini extractSearchSources deduplicates identical URLs", () => {
+  const chunks = [
+    {
+      web: {
+        uri: "https://www.bbc.com/sport/football/12345",
+        title: "Article A",
+      },
+    },
+    {
+      web: {
+        uri: "https://www.bbc.com/sport/football/12345",
+        title: "Duplicate Article",
+      },
+    },
+  ];
+  const sources = app.extractSearchSources(chunks);
+  assert.equal(sources.length, 1);
 });
 
-test("API-Football search returns only alphanumeric words and spaces", () => {
-  assert.match(
-    app.sanitizeApiFootballSearch("FC Barça_2025 #Match"),
-    /^[a-z0-9 ]+$/,
-  );
+test("Gemini searchWebWithGemini function is exported", () => {
+  assert.equal(typeof app.searchWebWithGemini, "function");
 });
 
-test("API-Football 2024 fixtures helper returns compact records", () => {
-  const query = app.apiFootballQuery;
-  assert.equal(typeof query, "function");
-});
-
-test("football data mode reports missing API-Football configuration", async () => {
-  const previousKey = process.env.API_FOOTBALL_KEY;
-  delete process.env.API_FOOTBALL_KEY;
+test("web search mode reports missing Gemini API key configuration", async () => {
+  const previousKey = process.env.GEMINI_API_KEY;
+  const previousKeyCamel = process.env.Gemini_API_Key;
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.Gemini_API_Key;
   try {
     const response = await fetch(`${baseUrl}/api/analyze-match`, {
       method: "POST",
@@ -261,10 +278,12 @@ test("football data mode reports missing API-Football configuration", async () =
       }),
     });
     assert.equal(response.status, 502);
-    assert.equal((await response.json()).code, "FOOTBALL_PROVIDER_ERROR");
+    assert.equal((await response.json()).code, "GEMINI_NOT_CONFIGURED");
   } finally {
-    if (previousKey === undefined) delete process.env.API_FOOTBALL_KEY;
-    else process.env.API_FOOTBALL_KEY = previousKey;
+    if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousKey;
+    if (previousKeyCamel === undefined) delete process.env.Gemini_API_Key;
+    else process.env.Gemini_API_Key = previousKeyCamel;
   }
 });
 

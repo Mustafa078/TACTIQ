@@ -12,6 +12,7 @@ import {
   Radio,
   Upload,
   Globe2,
+  ExternalLink,
   Send,
   Shield,
   Sparkles,
@@ -24,10 +25,16 @@ const stepMeta = {
   synthesize: { label: "Takeaway", icon: AudioLines, color: "green" },
 };
 
-const suggestions = [
+const matchSuggestions = [
   "How did Arsenal create that chance?",
   "Break down the pressure before Saka's shot",
   "What was Ødegaard's role in the build-up?",
+];
+
+const webSuggestions = [
+  "Latest Premier League results and table standings",
+  "Arsenal vs Tottenham recent match highlights and stats",
+  "Champions League results and top scorers this week",
 ];
 
 function popularQuestions(home, away) {
@@ -492,7 +499,7 @@ export default function App() {
                       ? matchSourceName === "Synthetic fixture"
                         ? "Synthetic match"
                         : matchSourceName
-                      : "Football records"}
+                      : "Web Intelligence"}
                   </h1>
                 </div>
                 <button
@@ -508,55 +515,38 @@ export default function App() {
                     ? matchSourceName === "Synthetic fixture"
                       ? "SYNTHETIC"
                       : "UPLOADED"
-                    : "API-FOOTBALL"}
+                    : "WEB SEARCH"}
                 </span>
               </div>
 
               {sourceMode === "web" ? (
                 <section className="sidebar-section web-source-panel">
                   <div className="section-heading">
-                    <span className="eyebrow">LATEST RECORDS</span>
+                    <span className="eyebrow">SEARCH SOURCES</span>
                     <span className="event-count">
-                      {String(latestSources.length).padStart(2, "0")} RECORDS
+                      {String(latestSources.length).padStart(2, "0")} SOURCES
                     </span>
                   </div>
                   {latestSources.length ? (
-                    latestSources.map((record, index) => (
-                      <div
-                        className="source-result"
-                        key={`${record.kind}-${record.team || record.home}-${record.date || record.rank}-${index}`}
+                    latestSources.map((source, index) => (
+                      <a
+                        className="source-result web-grounded-item"
+                        key={`${source.uri || index}-${index}`}
+                        href={source.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        <span>[{index + 1}]</span>
-                        <div>
-                          <strong>
-                            {record.kind === "standing"
-                              ? `#${record.rank} ${record.team}`
-                              : `${record.home} vs ${record.away}`}
-                          </strong>
-                          {record.kind === "fixture" ? (
-                            <p>
-                              {record.league} · {record.status || "Scheduled"}
-                              {record.goals?.home != null
-                                ? ` · ${record.goals.home}-${record.goals.away}`
-                                : ""}
-                            </p>
-                          ) : (
-                            <p>
-                              Played {record.played} · Pts {record.points}
-                            </p>
-                          )}
-                          <small>
-                            {record.date ||
-                              record.season ||
-                              "API-Football record"}
-                          </small>
+                        <span className="source-index">0{index + 1}</span>
+                        <div className="source-info">
+                          <strong>{source.title || source.domain}</strong>
+                          <small>{source.domain || "Web source"}</small>
                         </div>
-                      </div>
+                        <ExternalLink size={12} className="source-card-link-icon" />
+                      </a>
                     ))
                   ) : (
                     <div className="feed-empty">
-                      Football records will appear here after your first
-                      API-Football question.
+                      Live Google Search sources will appear here when you submit a question in Web mode.
                     </div>
                   )}
                 </section>
@@ -833,11 +823,14 @@ export default function App() {
                       </div>
                     </div>
                     <div className="suggestion-list">
-                      {suggestions.map((suggestion, index) => (
+                      {(sourceMode === "web"
+                        ? webSuggestions
+                        : matchSuggestions
+                      ).map((suggestion, index) => (
                         <button
                           key={suggestion}
                           onClick={() => askQuestion(suggestion)}
-                          disabled={loading || !match}
+                          disabled={loading || (sourceMode === "match" && !match)}
                         >
                           <span className="suggestion-index">0{index + 1}</span>
                           {suggestion}
@@ -866,24 +859,51 @@ export default function App() {
                           >
                             {message.kind === "general" ||
                             message.kind === "web" ? (
-                              <div className="general-answer">
-                                <span className="mini-mark">T</span>
-                                <div>
-                                  <p>{message.answer}</p>
-                                  {message.sources?.length > 0 && (
-                                    <div className="answer-sources">
-                                      {message.sources.map((record, index) => (
-                                        <span key={`${record.kind}-${index}`}>
-                                          [{index + 1}]{" "}
-                                          {record.kind === "standing"
-                                            ? `${record.team}, ${record.points} pts`
-                                            : `${record.home} vs ${record.away}${record.goals?.home != null ? ` (${record.goals.home}-${record.goals.away})` : ""}`}
-                                        </span>
+                              <>
+                                <div className="answer-brand">
+                                  <span className="mini-mark">T</span>
+                                  <span>TACTIQ INTELLIGENCE</span>
+                                  <i>{message.kind === "web" ? "WEB GROUNDED" : "GENERAL"}</i>
+                                </div>
+                                <div className="general-answer web-answer-formatted">
+                                  <div className="general-answer-body">
+                                    <div className="answer-text-content">
+                                      {message.answer.split("\n\n").map((para, i) => (
+                                        <p key={i}>{para}</p>
                                       ))}
                                     </div>
-                                  )}
+                                    {message.sources?.length > 0 && (
+                                      <div className="grounded-sources-block">
+                                        <div className="sources-label">
+                                          <Globe2 size={12} />
+                                          <span>VERIFIED SEARCH SOURCES</span>
+                                        </div>
+                                        <div className="web-source-grid">
+                                          {message.sources.map((source, index) => (
+                                            <a
+                                              key={`${source.uri || index}-${index}`}
+                                              href={source.uri}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="web-source-card"
+                                            >
+                                              <div className="web-source-card-top">
+                                                <span className="source-domain-tag">
+                                                  {source.domain || "web"}
+                                                </span>
+                                                <ExternalLink size={11} className="card-ext-icon" />
+                                              </div>
+                                              <div className="source-card-title">
+                                                {source.title || source.domain}
+                                              </div>
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              </>
                             ) : (
                               <>
                                 <div className="answer-brand">
@@ -971,7 +991,7 @@ export default function App() {
                       onClick={() => setSourceMode("web")}
                     >
                       {" "}
-                      <Globe2 size={13} /> Football data
+                      <Globe2 size={13} /> Web Search
                     </button>
                   </div>
                   {sourceMode === "match" && (

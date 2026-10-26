@@ -1,0 +1,6 @@
+{
+  "name": "TactIQ — Match Intelligence Studio",
+  "description": "TactIQ turns match moments into broadcast-ready tactical insight.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

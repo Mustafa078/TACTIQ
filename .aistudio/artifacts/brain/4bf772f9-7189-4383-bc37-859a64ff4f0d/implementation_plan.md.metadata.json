@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for replacing API-Football with Google Gemini Search Grounding in Web mode, retaining Azure OpenAI for Match data mode, and rendering interactive source cards in the UI.",
+  "updatedAt":  "2026-10-26T12:01:09.243479639Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
