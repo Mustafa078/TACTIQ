@@ -178,11 +178,17 @@ function computeMetrics(events) {
   const pressureRatings = [];
   const passDistances = [];
   const passAccuracies = [];
+  const passDifficulties = [];
   const speeds = [];
+  const playerSpeeds = [];
+  const shotSpeeds = [];
   const xgValues = [];
+  const speedThresholdAlerts = [];
   let passSuccesses = 0;
   let passesWithOutcome = 0;
   let goals = 0;
+  let transitionEvents = 0;
+  let controlEvents = 0;
 
   for (const event of events) {
     const type = String(event.event_type || "unknown").toLocaleLowerCase();
@@ -191,10 +197,43 @@ function computeMetrics(events) {
     byTeam[team] ||= { events: 0, shots: 0, goals: 0, passes: 0, pressures: 0 };
     byTeam[team].events += 1;
 
+    if (
+      typeof event.player_speed_kmh === "number" &&
+      Number.isFinite(event.player_speed_kmh)
+    ) {
+      playerSpeeds.push(event.player_speed_kmh);
+      if (event.player_speed_kmh >= 30.0) {
+        speedThresholdAlerts.push({
+          eventId: event.event_id,
+          timestamp: event.timestamp,
+          player: event.player,
+          team: event.team,
+          speedKmh: event.player_speed_kmh,
+          type: "SPRINT_BURST",
+        });
+      }
+    }
+
+    if (
+      event.control_chaos_state === "high_tempo_transition" ||
+      type === "shot" ||
+      (event.player_speed_kmh || 0) >= 28.5
+    ) {
+      transitionEvents += 1;
+    } else {
+      controlEvents += 1;
+    }
+
     if (type === "shot") {
       byTeam[team].shots += 1;
       if (typeof event.xg === "number" && Number.isFinite(event.xg))
         xgValues.push(event.xg);
+      if (
+        typeof event.shot_speed_kmh === "number" &&
+        Number.isFinite(event.shot_speed_kmh)
+      ) {
+        shotSpeeds.push(event.shot_speed_kmh);
+      }
       if (event.goal === true) {
         goals += 1;
         byTeam[team].goals += 1;
@@ -213,6 +252,12 @@ function computeMetrics(events) {
         Number.isFinite(event.pass_accuracy)
       ) {
         passAccuracies.push(event.pass_accuracy);
+      }
+      if (
+        typeof event.pass_difficulty_rating === "number" &&
+        Number.isFinite(event.pass_difficulty_rating)
+      ) {
+        passDifficulties.push(event.pass_difficulty_rating);
       }
       if (typeof event.success === "boolean") {
         passesWithOutcome += 1;
@@ -236,6 +281,10 @@ function computeMetrics(events) {
     }
   }
 
+  const totalRhythm = controlEvents + transitionEvents || 1;
+  const controlScore = Math.round((controlEvents / totalRhythm) * 100);
+  const chaosScore = 100 - controlScore;
+
   return {
     analyzedEventCount: events.length,
     eventCountsByType: byType,
@@ -250,11 +299,25 @@ function computeMetrics(events) {
       : null,
     meanReportedPassAccuracy: average(passAccuracies),
     meanPassDistanceMeters: average(passDistances),
+    meanPassDifficulty: average(passDifficulties),
     meanPressureRating: average(pressureRatings),
     highestPressureRating: pressureRatings.length
       ? Math.max(...pressureRatings)
       : null,
     maxBallSpeedKmh: speeds.length ? Math.max(...speeds) : null,
+    maxPlayerSpeedKmh: playerSpeeds.length ? Math.max(...playerSpeeds) : null,
+    maxShotSpeedKmh: shotSpeeds.length ? Math.max(...shotSpeeds) : null,
+    speedThresholdAlerts,
+    controlChaosIndex: {
+      controlScore,
+      chaosScore,
+      summary:
+        controlScore >= 60
+          ? "Controlled possession dominance with structured territorial buildup"
+          : controlScore <= 40
+            ? "High-intensity transition chaos with rapid counter-pressing"
+            : "Balanced contest fluctuating between positional control and explosive transitions",
+    },
     metricsAvailability: {
       passOutcomeEvents: passesWithOutcome,
       xgEvents: xgValues.length,

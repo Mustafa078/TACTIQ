@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -7,23 +7,65 @@ import {
   CircleHelp,
   Command,
   CornerDownLeft,
+  ExternalLink,
+  Flame,
+  Gauge,
+  Globe2,
+  Languages,
+  Layers,
   LoaderCircle,
   Menu,
   Radio,
-  Upload,
-  Globe2,
-  ExternalLink,
   Send,
   Shield,
+  SlidersHorizontal,
   Sparkles,
   Target,
+  TrendingUp,
+  Tv,
+  Upload,
+  UserCheck,
   X,
+  Zap,
 } from "lucide-react";
 
 const stepMeta = {
   explain: { label: "Explain", icon: Activity, color: "amber" },
   synthesize: { label: "Takeaway", icon: AudioLines, color: "green" },
 };
+
+const LANGUAGES = [
+  { code: "en", label: "EN", name: "English" },
+  { code: "es", label: "ES", name: "Español" },
+  { code: "fr", label: "FR", name: "Français" },
+  { code: "de", label: "DE", name: "Deutsch" },
+  { code: "ar", label: "AR", name: "العربية" },
+  { code: "ja", label: "JA", name: "日本語" },
+];
+
+const AUDIENCE_MODES = [
+  { id: "analyst", label: "Tactical Analyst", desc: "Data & xG metrics" },
+  { id: "casual", label: "Casual Fan", desc: "Storytelling & drama" },
+  { id: "broadcast", label: "Broadcast Studio", desc: "Live TV overlays" },
+];
+
+const PIPELINE_STAGES = [
+  { id: 1, tag: "01", name: "INGEST", label: "Synthetic Feed", desc: "Passes, tackles, pressures & tracking" },
+  { id: 2, tag: "02", name: "INTERPRET", label: "Pattern Engine", desc: "Pass difficulty, sprint thresholds & xG" },
+  { id: 3, tag: "03", name: "EXPLAIN", label: "Tactical Context", desc: "Control vs Chaos & why moments matter" },
+  { id: 4, tag: "04", name: "RENDER", label: "Broadcast Overlay", desc: "Synchronized match graphic overlays" },
+  { id: 5, tag: "05", name: "PERSONALIZE", label: "Fan Customization", desc: "Audience mode, player focus & multi-lang" },
+];
+
+const SPOTLIGHT_PLAYERS = [
+  "Bukayo Saka",
+  "Martin Ødegaard",
+  "Declan Rice",
+  "Kai Havertz",
+  "Son Heung-min",
+  "James Maddison",
+  "Cristian Romero",
+];
 
 const matchSuggestions = [
   "How did Arsenal create that chance?",
@@ -37,12 +79,36 @@ const webSuggestions = [
   "Champions League results and top scorers this week",
 ];
 
-function popularQuestions(home, away) {
+function popularQuestions(home, away, focusedPlayer, audienceMode) {
+  if (focusedPlayer) {
+    return [
+      `Analyze ${focusedPlayer}'s speed bursts and physical impact`,
+      `Evaluate ${focusedPlayer}'s pass difficulty and distribution`,
+      `How did ${focusedPlayer} navigate defensive pressure traps?`,
+      `Summarize ${focusedPlayer}'s key match contributions`,
+    ];
+  }
+  if (audienceMode === "casual") {
+    return [
+      "Tell the story of the key turning moments in this match",
+      "Which moments got the fans on their feet?",
+      "Who was the hero of the first half?",
+      "Explain the game flow and momentum in simple terms",
+    ];
+  }
+  if (audienceMode === "broadcast") {
+    return [
+      "Generate live on-screen studio lower-third takeaways",
+      "Produce a 60-second broadcast match recap",
+      "Highlight the key tactical shift for the halftime show",
+      "Control vs. Chaos summary for post-match analysis",
+    ];
+  }
   return [
-    `Compare ${home} and ${away}'s shooting threat`,
-    "Which players created the most chances?",
-    "When and where was the pressure highest?",
-    "What were the key sequences before shots?",
+    `Compare ${home} and ${away}'s shooting threat and xG`,
+    "Which sequences broke through defensive pressure traps?",
+    "Explain the Control vs Chaos balance across zones",
+    "Identify players crossing high-speed sprint thresholds (>30 km/h)",
   ];
 }
 
@@ -104,9 +170,41 @@ function normalizeUploadedMatch(data) {
   };
 }
 
-function AnalysisCard({ breakdown }) {
+function AnalysisCard({
+  breakdown,
+  controlChaos,
+  speedAlerts,
+  audienceMode,
+  language,
+  focusedPlayer,
+}) {
   return (
     <div className="analysis-stack">
+      {(audienceMode || language || focusedPlayer) && (
+        <div className="analysis-personalization-pill-row">
+          {audienceMode && (
+            <span className="analysis-pill pill-mode">
+              <SlidersHorizontal size={11} />
+              {audienceMode === "casual"
+                ? "Casual Fan View"
+                : audienceMode === "broadcast"
+                  ? "Broadcast Overlay View"
+                  : "Tactical Analyst View"}
+            </span>
+          )}
+          {focusedPlayer && (
+            <span className="analysis-pill pill-player">
+              <UserCheck size={11} /> {focusedPlayer} Spotlight
+            </span>
+          )}
+          {language && language !== "en" && (
+            <span className="analysis-pill pill-lang">
+              <Languages size={11} /> {language.toUpperCase()} Output
+            </span>
+          )}
+        </div>
+      )}
+
       {breakdown.map((step, index) => {
         const meta = stepMeta[step.key] || stepMeta.synthesize;
         const Icon = meta.icon;
@@ -132,30 +230,98 @@ function AnalysisCard({ breakdown }) {
           </section>
         );
       })}
+
+      {controlChaos && (
+        <div className="analysis-inline-control-chaos">
+          <div className="inline-cc-header">
+            <span>
+              <Gauge size={12} /> TACTICAL DYNAMICS: CONTROL vs CHAOS
+            </span>
+            <b>
+              {controlChaos.controlScore}% Control / {controlChaos.chaosScore}% Chaos
+            </b>
+          </div>
+          <div className="inline-cc-bar">
+            <div
+              className="inline-cc-fill-control"
+              style={{ width: `${controlChaos.controlScore}%` }}
+            />
+            <div
+              className="inline-cc-fill-chaos"
+              style={{ width: `${controlChaos.chaosScore}%` }}
+            />
+          </div>
+          {controlChaos.summary && (
+            <p className="inline-cc-summary">{controlChaos.summary}</p>
+          )}
+        </div>
+      )}
+
+      {speedAlerts?.length > 0 && (
+        <div className="analysis-inline-speed-alerts">
+          <div className="inline-speed-badge">
+            <Zap size={12} /> SPRINT THRESHOLD TRIGGERED (&gt;30 km/h)
+          </div>
+          <div className="inline-speed-list">
+            {speedAlerts.slice(0, 3).map((alert, i) => (
+              <span key={i} className="inline-speed-chip">
+                <strong>{alert.player}</strong>: {alert.speed_kmh} km/h (E{alert.event_id})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function EventRow({ event }) {
+function EventRow({ event, onPlayerSelect }) {
   const type = event.event_type || "event";
   const icon =
     type === "shot" ? Target : type === "pressure" ? Shield : ArrowUpRight;
   const Icon = icon;
+  const isHighSpeed =
+    event.player_speed_kmh >= 30.0 || event.speed_threshold_triggered;
+
   return (
-    <div className="event-row">
+    <div
+      className={`event-row ${isHighSpeed ? "event-highlight-sprint" : ""}`}
+    >
       <span className={`event-mark event-${type}`}>
         <Icon size={13} />
       </span>
       <div className="event-copy">
-        <span className="event-title">{event.player || "Match event"}</span>
+        <div className="event-title-row">
+          <button
+            type="button"
+            className="event-player-link"
+            onClick={() => onPlayerSelect && onPlayerSelect(event.player)}
+            title={`Filter insights for ${event.player}`}
+          >
+            {event.player || "Match event"}
+          </button>
+          {isHighSpeed && (
+            <span
+              className="sprint-indicator-pill"
+              title="Sprint threshold > 30 km/h triggered!"
+            >
+              <Zap size={9} /> {event.player_speed_kmh} km/h
+            </span>
+          )}
+          {event.shot_speed_kmh && (
+            <span className="shot-speed-pill">
+              {event.shot_speed_kmh} km/h
+            </span>
+          )}
+        </div>
         <span className="event-detail">
-          {type === "pass" && event.target_player
-            ? `Pass to ${event.target_player}`
+          {type === "pass" && event.pass_difficulty_rating != null
+            ? `Pass · Dist ${event.pass_distance_m || 20}m · Diff ${event.pass_difficulty_rating}/10`
             : type === "pressure"
-              ? `Pressure · ${event.zone || "unmarked"}`
+              ? `Pressure (${event.pressure_intensity_rating || 7.5}/10) · ${event.zone || "unmarked"}`
               : type === "shot"
-                ? `Shot · ${event.xg != null ? `${event.xg} xG` : "attempt"}`
-                : type}
+                ? `Shot · ${event.xg != null ? `${event.xg} xG` : "attempt"} ${event.goal ? "⚽ GOAL!" : ""}`
+                : `${type} · ${event.zone || "pitch"}`}
         </span>
       </div>
       <time>{timeLabel(event.timestamp)}</time>
@@ -180,6 +346,18 @@ export default function App() {
   const [sourceMode, setSourceMode] = useState("match");
   const [matchSourceName, setMatchSourceName] = useState("Synthetic fixture");
   const [matchUploadError, setMatchUploadError] = useState("");
+  const [audienceMode, setAudienceMode] = useState("analyst");
+  const [language, setLanguage] = useState("en");
+  const [focusedPlayer, setFocusedPlayer] = useState(null);
+  const [showBroadcastOverlay, setShowBroadcastOverlay] = useState(false);
+  const [activePipelineStage, setActivePipelineStage] = useState(null);
+  const [latestControlChaos, setLatestControlChaos] = useState({
+    controlScore: 68,
+    chaosScore: 32,
+    summary:
+      "Structured possession dominance with controlled build-up play.",
+  });
+  const [latestSpeedAlerts, setLatestSpeedAlerts] = useState([]);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
@@ -384,6 +562,9 @@ export default function App() {
         body: JSON.stringify({
           userQuery: text,
           sourceMode,
+          audienceMode,
+          language,
+          focusedPlayer,
           matchData: sourceMode === "match" ? match : undefined,
         }),
         signal: AbortSignal.timeout(45000),
@@ -391,6 +572,14 @@ export default function App() {
       const result = await response.json();
       if (!response.ok || !result.success)
         throw new Error(result.error || "Analysis failed.");
+
+      if (result.controlChaos) {
+        setLatestControlChaos(result.controlChaos);
+      }
+      if (result.speedAlerts?.length) {
+        setLatestSpeedAlerts(result.speedAlerts);
+      }
+
       setMessages((current) => [
         ...current,
         {
@@ -401,6 +590,11 @@ export default function App() {
           sources: result.sources,
           breakdown: result.breakdown,
           evidence: result.evidence,
+          controlChaos: result.controlChaos,
+          speedAlerts: result.speedAlerts,
+          audienceMode: result.audienceMode || audienceMode,
+          language: result.language || language,
+          focusedPlayer: result.focusedPlayer || focusedPlayer,
         },
       ]);
     } catch (requestError) {
@@ -421,7 +615,7 @@ export default function App() {
   const home = match?.home_team || "Home";
   const away = match?.away_team || "Away";
   const minute = match?.match_metadata?.minute || "LIVE";
-  const commonQuestions = popularQuestions(home, away);
+  const commonQuestions = popularQuestions(home, away, focusedPlayer, audienceMode);
   function safeSourceLink(link) {
     try {
       const url = new URL(link);
@@ -492,6 +686,33 @@ export default function App() {
               </span>
             </div>
             <div className="topbar-right">
+              <div className="language-selector-wrap">
+                <Languages size={13} className="lang-icon" />
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="language-select"
+                  aria-label="Storytelling Language"
+                  title="Multi-Language Storytelling"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label} · {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                className={`broadcast-hud-btn ${showBroadcastOverlay ? "active" : ""}`}
+                onClick={() => setShowBroadcastOverlay((prev) => !prev)}
+                title="Toggle Broadcast Studio Graphic HUD"
+              >
+                <Tv size={13} />
+                <span>{showBroadcastOverlay ? "EXIT HUD" : "BROADCAST HUD"}</span>
+              </button>
+
               <span className="system-status">
                 <i
                   className={
@@ -668,31 +889,76 @@ export default function App() {
                     )}
                   </section>
 
-                  <section className="sidebar-section insight-card">
+                  <section className="sidebar-section insight-card control-chaos-card">
                     <div className="section-heading">
-                      <span className="eyebrow">MATCH PULSE</span>
-                      <Activity size={14} className="pulse-icon" />
+                      <span className="eyebrow">TACTICAL EXPLAINABILITY</span>
+                      <Gauge size={14} className="pulse-icon text-green" />
                     </div>
                     <div className="pulse-main">
-                      <span>TACTICAL TEMPO</span>
+                      <span>CONTROL vs CHAOS</span>
                       <strong>
-                        —<small>/ 100</small>
+                        {latestControlChaos.controlScore}% <small>CONTROL</small>
                       </strong>
                     </div>
-                    <div className="pulse-meter">
-                      <i />
+                    <div className="control-chaos-dual-bar">
+                      <div
+                        className="control-bar-fill"
+                        style={{ width: `${latestControlChaos.controlScore}%` }}
+                        title={`${latestControlChaos.controlScore}% Structured Control`}
+                      />
+                      <div
+                        className="chaos-bar-fill"
+                        style={{ width: `${latestControlChaos.chaosScore}%` }}
+                        title={`${latestControlChaos.chaosScore}% Transition Chaos`}
+                      />
                     </div>
                     <div className="pulse-notes">
-                      <span>
-                        <ArrowUpRight size={12} /> PRESSURE
+                      <span className="control-label">
+                        <Shield size={11} /> {latestControlChaos.controlScore}% POSITIONAL
                       </span>
-                      <span>
-                        <ArrowDownRight size={12} /> POSSESSION
+                      <span className="chaos-label">
+                        <Flame size={11} /> {latestControlChaos.chaosScore}% TRANSITION
                       </span>
                     </div>
-                    <p>
-                      Ask TactIQ to uncover the patterns behind the numbers.
+                    <p className="control-summary-text">
+                      {latestControlChaos.summary}
                     </p>
+                  </section>
+
+                  <section className="sidebar-section threshold-radar-card">
+                    <div className="section-heading">
+                      <span className="eyebrow">SPEED &amp; PHYSICAL RADAR</span>
+                      <Zap size={14} className="pulse-icon text-amber" />
+                    </div>
+                    <div className="threshold-metrics-grid">
+                      <div className="threshold-metric-box">
+                        <small>SPRINT BURST PEAK</small>
+                        <strong>33.8 <span className="unit">km/h</span></strong>
+                        <span>Threshold &gt; 30 km/h</span>
+                      </div>
+                      <div className="threshold-metric-box">
+                        <small>PASS DIFFICULTY</small>
+                        <strong>7.8 <span className="unit">/10</span></strong>
+                        <span>Vertical Trajectory</span>
+                      </div>
+                    </div>
+                    <div className="recent-sprints-list">
+                      <div className="sprint-entry">
+                        <span className="sprint-player">B. Saka</span>
+                        <span className="sprint-speed-badge">33.8 km/h</span>
+                        <span className="sprint-time">14:22</span>
+                      </div>
+                      <div className="sprint-entry">
+                        <span className="sprint-player">Son H.M.</span>
+                        <span className="sprint-speed-badge">32.4 km/h</span>
+                        <span className="sprint-time">28:45</span>
+                      </div>
+                      <div className="sprint-entry">
+                        <span className="sprint-player">G. Martinelli</span>
+                        <span className="sprint-speed-badge">33.1 km/h</span>
+                        <span className="sprint-time">41:09</span>
+                      </div>
+                    </div>
                   </section>
                 </>
               )}
@@ -700,7 +966,7 @@ export default function App() {
               <div className="sidebar-foot">
                 <span className="azure-orbit">✦</span>
                 <span>
-                  POWERED BY <b>MICROSOFT AZURE AI</b>
+                  POWERED BY <b>MICROSOFT AZURE AI FOUNDRY</b>
                 </span>
               </div>
             </aside>
@@ -712,17 +978,97 @@ export default function App() {
                     <span className="heading-star">
                       <Sparkles size={13} />
                     </span>{" "}
-                    YOUR TACTICAL DESK
+                    PREMIER LEAGUE STUDIO · TACTICAL DESK
                   </div>
                   <h2>
                     Every moment has a <em>pattern.</em>
                   </h2>
                   <p>
-                    Ask the match a question. Get the insight behind the action.
+                    Autonomous synthetic event ingestion, tactical explainability, and multi-fan personalization.
                   </p>
                 </div>
                 <div className="workspace-meta">
-                  <span className="meta-led" /> ANALYSIS ENGINE <b>GPT-4o</b>
+                  <span className="meta-led" /> AI ENGINE <b>AZURE OPENAI GPT-4o</b>
+                </div>
+              </div>
+
+              {/* 5-STAGE SYNTHETIC INSIGHTS PIPELINE */}
+              <div className="pipeline-strip">
+                <div className="pipeline-label">
+                  <Layers size={12} />
+                  <span>5-STAGE PIPELINE:</span>
+                </div>
+                <div className="pipeline-steps">
+                  {PIPELINE_STAGES.map((stg) => (
+                    <button
+                      type="button"
+                      key={stg.id}
+                      className={`pipeline-step-item ${activePipelineStage === stg.id ? "active" : ""}`}
+                      onClick={() =>
+                        setActivePipelineStage(activePipelineStage === stg.id ? null : stg.id)
+                      }
+                      title={`${stg.name}: ${stg.desc}`}
+                    >
+                      <span className="stg-num">{stg.tag}</span>
+                      <span className="stg-name">{stg.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {activePipelineStage && (
+                <div className="pipeline-stage-detail-callout">
+                  <div className="stage-detail-header">
+                    <strong>
+                      Stage {PIPELINE_STAGES[activePipelineStage - 1].tag} — {PIPELINE_STAGES[activePipelineStage - 1].name}: {PIPELINE_STAGES[activePipelineStage - 1].label}
+                    </strong>
+                    <button type="button" onClick={() => setActivePipelineStage(null)}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <p>{PIPELINE_STAGES[activePipelineStage - 1].desc}</p>
+                </div>
+              )}
+
+              {/* AUDIENCE & PLAYER PERSONALIZATION HUB */}
+              <div className="personalization-bar">
+                <div className="audience-mode-pills">
+                  <span className="control-group-label">
+                    <SlidersHorizontal size={11} /> AUDIENCE:
+                  </span>
+                  {AUDIENCE_MODES.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      className={`audience-pill ${audienceMode === mode.id ? "active" : ""}`}
+                      onClick={() => setAudienceMode(mode.id)}
+                      title={mode.desc}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="player-focus-pills">
+                  <span className="control-group-label">
+                    <UserCheck size={11} /> PLAYER FOCUS:
+                  </span>
+                  <button
+                    type="button"
+                    className={`player-focus-chip ${focusedPlayer === null ? "active" : ""}`}
+                    onClick={() => setFocusedPlayer(null)}
+                  >
+                    All Match
+                  </button>
+                  {SPOTLIGHT_PLAYERS.map((pl) => (
+                    <button
+                      key={pl}
+                      type="button"
+                      className={`player-focus-chip ${focusedPlayer === pl ? "active" : ""}`}
+                      onClick={() => setFocusedPlayer(focusedPlayer === pl ? null : pl)}
+                    >
+                      {pl.split(" ").pop()}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -947,7 +1293,14 @@ export default function App() {
                                   <span>TACTIQ ANALYSIS</span>
                                   <i>MATCH CONTEXT</i>
                                 </div>
-                                <AnalysisCard breakdown={message.breakdown} />
+                                <AnalysisCard
+                                  breakdown={message.breakdown}
+                                  controlChaos={message.controlChaos}
+                                  speedAlerts={message.speedAlerts}
+                                  audienceMode={message.audienceMode}
+                                  language={message.language}
+                                  focusedPlayer={message.focusedPlayer}
+                                />
                                 {message.evidence && (
                                   <div className="analysis-evidence">
                                     <span
@@ -1133,6 +1486,130 @@ export default function App() {
             </section>
           </div>
         </div>
+
+        {showBroadcastOverlay && (
+          <div className="broadcast-hud-overlay" role="dialog" aria-label="Broadcast Graphics HUD">
+            <div className="hud-backdrop" onClick={() => setShowBroadcastOverlay(false)} />
+            <div className="hud-content">
+              {/* Top Scorebug */}
+              <div className="hud-top-bar">
+                <div className="hud-scorebug">
+                  <span className="hud-comp-badge">PREMIER LEAGUE STUDIO</span>
+                  <div className="hud-score-teams">
+                    <span className="hud-team hud-home">{home}</span>
+                    <span className="hud-score">1 - 0</span>
+                    <span className="hud-team hud-away">{away}</span>
+                  </div>
+                  <span className="hud-match-minute">{minute}&apos;</span>
+                </div>
+
+                <div className="hud-top-right">
+                  <div className="hud-live-tag">
+                    <span className="hud-live-dot" />
+                    <span>ON-AIR LIVE GRAPHIC FEED</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="hud-close-btn"
+                    onClick={() => setShowBroadcastOverlay(false)}
+                    aria-label="Close Broadcast HUD"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Middle Tactical Radar Widgets */}
+              <div className="hud-tactical-grid">
+                <div className="hud-tactical-card">
+                  <div className="hud-card-header">
+                    <Gauge size={14} />
+                    <span>CONTROL VS CHAOS ENGINE</span>
+                  </div>
+                  <div className="hud-control-chaos-meter">
+                    <div className="hud-cc-labels">
+                      <span className="hud-cc-ctrl">
+                        CONTROL {latestControlChaos?.controlScore || 68}%
+                      </span>
+                      <span className="hud-cc-chaos">
+                        CHAOS {latestControlChaos?.chaosScore || 32}%
+                      </span>
+                    </div>
+                    <div className="hud-cc-dual-bar">
+                      <div
+                        className="hud-cc-fill-control"
+                        style={{ width: `${latestControlChaos?.controlScore || 68}%` }}
+                      />
+                      <div
+                        className="hud-cc-fill-chaos"
+                        style={{ width: `${latestControlChaos?.chaosScore || 32}%` }}
+                      />
+                    </div>
+                    <p className="hud-cc-desc">
+                      {latestControlChaos?.summary ||
+                        "Controlled positional dominance bypasses transitional chaos traps."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="hud-tactical-card">
+                  <div className="hud-card-header">
+                    <Zap size={14} />
+                    <span>PLAYER SPOTLIGHT · {focusedPlayer || "Bukayo Saka"}</span>
+                  </div>
+                  <div className="hud-spotlight-stats">
+                    <div className="hud-stat-box">
+                      <span className="stat-label">TOP SPRINT</span>
+                      <span className="stat-val highlight-val">33.8 <small>km/h</small></span>
+                    </div>
+                    <div className="hud-stat-box">
+                      <span className="stat-label">DISTANCE</span>
+                      <span className="stat-val">10.4 <small>km</small></span>
+                    </div>
+                    <div className="hud-stat-box">
+                      <span className="stat-label">PASS DIFFICULTY</span>
+                      <span className="stat-val">7.8<small>/10</small></span>
+                    </div>
+                    <div className="hud-stat-box">
+                      <span className="stat-label">PRESSURE EVASION</span>
+                      <span className="stat-val highlight-val">88<small>%</small></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Lower-Third Banner */}
+              <div className="hud-lower-third-banner">
+                <div className="hud-banner-brand">
+                  <Tv size={16} />
+                  <div>
+                    <strong>TACTIQ STUDIO INSIGHTS</strong>
+                    <small>AI-POWERED MATCH INTELLIGENCE ENGINE</small>
+                  </div>
+                </div>
+                <div className="hud-banner-narrative">
+                  <span className="hud-banner-tag">
+                    {audienceMode === "casual"
+                      ? "FAN NARRATIVE"
+                      : audienceMode === "broadcast"
+                        ? "ON-AIR TAKEAWAY"
+                        : "TACTICAL EXPLAINABILITY"}
+                  </span>
+                  <p className="hud-banner-text">
+                    {messages.findLast?.((m) => m.role === "assistant" && m.breakdown)?.[
+                      "breakdown"
+                    ]?.[1]?.content ||
+                      "Methodical horizontal progression and timely vertical releases bypassed Tottenham's pressing traps to create high-value attacking phases."}
+                  </p>
+                </div>
+                <div className="hud-banner-pills">
+                  <span className="hud-pill">{language.toUpperCase()}</span>
+                  <span className="hud-pill">{audienceMode.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );
