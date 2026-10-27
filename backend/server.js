@@ -60,7 +60,7 @@ app.use(express.json({ limit: "256kb", strict: true }));
 
 const requestCounts = new Map();
 const MAX_RATE_LIMIT_BUCKETS = 10_000;
-app.use("/api/analyze-match", (req, res, next) => {
+app.use(["/api/analyze-match", "/analyze-match"], (req, res, next) => {
   const now = Date.now();
   const windowStart = now - 60_000;
   const key = req.ip;
@@ -446,17 +446,16 @@ function validateCitations(text, allowedEventIds) {
 }
 
 // --- API ENDPOINTS ---
-
-app.get("/api/health", (_req, res) => {
+app.get(["/api/health", "/health"], (_req, res) => {
   res.json({ success: true, service: "tactiq-api" });
 });
 
-app.get("/api/match", (_req, res) => {
+app.get(["/api/match", "/match"], (_req, res) => {
   const normalized = normalizeMatchData(matchData);
   res.json({ success: true, matchData: normalized });
 });
 
-app.post("/api/analyze-match", async (req, res) => {
+app.post(["/api/analyze-match", "/analyze-match"], async (req, res) => {
   const {
     userQuery,
     matchData: submittedMatchData,
