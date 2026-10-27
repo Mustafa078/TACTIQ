@@ -36,15 +36,45 @@ app.use((req, res, next) => {
   );
   next();
 });
-app.use(
+app.use((req, res, next) => {
   cors({
     origin(origin, callback) {
       const isDevelopment = process.env.NODE_ENV !== "production";
       const allowedOrigins = getAllowedOrigins();
+
+      let isSameOrigin = false;
+      let isAllowedVercelOrigin = false;
+
+      if (origin) {
+        try {
+          const originHost = new URL(origin).host;
+          const reqHost = req.headers.host;
+          if (
+            originHost &&
+            reqHost &&
+            (originHost === reqHost || reqHost.startsWith(originHost))
+          ) {
+            isSameOrigin = true;
+          }
+          if (
+            originHost.endsWith(".vercel.app") ||
+            originHost.endsWith(".now.sh")
+          ) {
+            isAllowedVercelOrigin = true;
+          }
+        } catch {}
+      }
+
       if (
         !origin ||
-        (isDevelopment && (origin.startsWith("http://localhost:") || origin.endsWith(".run.app") || origin.includes("localhost"))) ||
-        allowedOrigins.includes(origin)
+        isSameOrigin ||
+        isAllowedVercelOrigin ||
+        allowedOrigins.includes("*") ||
+        allowedOrigins.includes(origin) ||
+        (isDevelopment &&
+          (origin.startsWith("http://localhost:") ||
+            origin.endsWith(".run.app") ||
+            origin.includes("localhost")))
       ) {
         callback(null, true);
         return;
@@ -54,8 +84,8 @@ app.use(
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     maxAge: 600,
-  }),
-);
+  })(req, res, next);
+});
 app.use(express.json({ limit: "256kb", strict: true }));
 
 const requestCounts = new Map();
