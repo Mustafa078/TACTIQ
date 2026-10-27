@@ -43,28 +43,12 @@ const LANGUAGES = [
   { code: "ja", label: "JA", name: "日本語" },
 ];
 
-const AUDIENCE_MODES = [
-  { id: "analyst", label: "Tactical Analyst", desc: "Data & xG metrics" },
-  { id: "casual", label: "Casual Fan", desc: "Storytelling & drama" },
-  { id: "broadcast", label: "Broadcast Studio", desc: "Live TV overlays" },
-];
-
 const PIPELINE_STAGES = [
   { id: 1, tag: "01", name: "INGEST", label: "Synthetic Feed", desc: "Passes, tackles, pressures & tracking" },
   { id: 2, tag: "02", name: "INTERPRET", label: "Pattern Engine", desc: "Pass difficulty, sprint thresholds & xG" },
   { id: 3, tag: "03", name: "EXPLAIN", label: "Tactical Context", desc: "Control vs Chaos & why moments matter" },
   { id: 4, tag: "04", name: "RENDER", label: "Broadcast Overlay", desc: "Synchronized match graphic overlays" },
-  { id: 5, tag: "05", name: "PERSONALIZE", label: "Fan Customization", desc: "Audience mode, player focus & multi-lang" },
-];
-
-const SPOTLIGHT_PLAYERS = [
-  "Bukayo Saka",
-  "Martin Ødegaard",
-  "Declan Rice",
-  "Kai Havertz",
-  "Son Heung-min",
-  "James Maddison",
-  "Cristian Romero",
+  { id: 5, tag: "05", name: "PERSONALIZE", label: "Multi-Language Engine", desc: "Global multi-language storytelling" },
 ];
 
 const matchSuggestions = [
@@ -79,31 +63,7 @@ const webSuggestions = [
   "Champions League results and top scorers this week",
 ];
 
-function popularQuestions(home, away, focusedPlayer, audienceMode) {
-  if (focusedPlayer) {
-    return [
-      `Analyze ${focusedPlayer}'s speed bursts and physical impact`,
-      `Evaluate ${focusedPlayer}'s pass difficulty and distribution`,
-      `How did ${focusedPlayer} navigate defensive pressure traps?`,
-      `Summarize ${focusedPlayer}'s key match contributions`,
-    ];
-  }
-  if (audienceMode === "casual") {
-    return [
-      "Tell the story of the key turning moments in this match",
-      "Which moments got the fans on their feet?",
-      "Who was the hero of the first half?",
-      "Explain the game flow and momentum in simple terms",
-    ];
-  }
-  if (audienceMode === "broadcast") {
-    return [
-      "Generate live on-screen studio lower-third takeaways",
-      "Produce a 60-second broadcast match recap",
-      "Highlight the key tactical shift for the halftime show",
-      "Control vs. Chaos summary for post-match analysis",
-    ];
-  }
+function popularQuestions(home, away) {
   return [
     `Compare ${home} and ${away}'s shooting threat and xG`,
     "Which sequences broke through defensive pressure traps?",
@@ -116,55 +76,137 @@ function timeLabel(value) {
   return value || "—";
 }
 
+function safeString(val, fallback = "") {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    if (typeof val.name === "string" && val.name.trim()) return val.name.trim();
+    if (typeof val.team_name === "string" && val.team_name.trim()) return val.team_name.trim();
+    if (typeof val.player_name === "string" && val.player_name.trim()) return val.player_name.trim();
+    if (typeof val.title === "string" && val.title.trim()) return val.title.trim();
+    if (typeof val.label === "string" && val.label.trim()) return val.label.trim();
+    if (typeof val.text === "string" && val.text.trim()) return val.text.trim();
+    if (typeof val.value === "string" && val.value.trim()) return val.value.trim();
+  }
+  return fallback;
+}
+
+function safeNum(val) {
+  if (typeof val === "number" && Number.isFinite(val)) return val;
+  if (typeof val === "string") {
+    const parsed = parseFloat(val);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 function normalizeUploadedMatch(data) {
+  if (!data || typeof data !== "object") return null;
+
+  const rawEvents = Array.isArray(data)
+    ? data
+    : Array.isArray(data.events)
+      ? data.events
+      : Array.isArray(data.match_events)
+        ? data.match_events
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
+
+  if (rawEvents.length === 0) return null;
+
   const fixtureText =
-    typeof data.fixture === "string"
-      ? data.fixture
-      : data.match_id || "Uploaded match";
+    safeString(data.fixture) || safeString(data.match_id) || "Uploaded Match Fixture";
+
   const fixtureParts = fixtureText.split(/\s+vs\s+/i);
-  const homeTeam = data.home_team || fixtureParts[0] || "Home";
-  const awayTeam = data.away_team || fixtureParts[1] || "Away";
-  const events = Array.isArray(data.events)
-    ? data.events
-        .map((event, index) => ({
-          ...event,
-          event_id: event.event_id ?? index + 1,
-          timestamp: event.timestamp || `${index + 1}:00`,
-          period: event.period || "Period not provided",
-          team: event.team || homeTeam,
-          player: event.player || "Player",
-          event_type: event.event_type || "event",
-        }))
-        .sort((left, right) => {
-          const seconds = (event) => {
-            const match = String(event.timestamp).match(/(\d+)(?::(\d{1,2}))?/);
-            if (!match) return Number.MAX_SAFE_INTEGER;
-            const halfOffset = /2nd|second/i.test(event.period) ? 45 * 60 : 0;
-            return halfOffset + Number(match[1]) * 60 + Number(match[2] || 0);
-          };
-          return seconds(left) - seconds(right);
-        })
-    : [];
+  const homeTeam =
+    safeString(data.home_team) || safeString(fixtureParts[0]) || "Home Team";
+  const awayTeam =
+    safeString(data.away_team) || safeString(fixtureParts[1]) || "Away Team";
+
+  const events = rawEvents
+    .filter((e) => e && typeof e === "object")
+    .map((event, index) => {
+      const pName =
+        safeString(event.player) ||
+        safeString(event.player_name) ||
+        "Player";
+      const tName =
+        safeString(event.team) ||
+        safeString(event.team_name) ||
+        homeTeam;
+      const typeStr =
+        safeString(event.event_type) ||
+        safeString(event.type) ||
+        safeString(event.type_name) ||
+        "pass";
+      const periodStr = safeString(event.period) || "1st Half";
+      const timestampStr = safeString(event.timestamp) || `${index + 1}:00`;
+      const zoneStr = safeString(event.zone) || "pitch";
+
+      return {
+        ...event,
+        event_id: Number.isSafeInteger(event.event_id)
+          ? event.event_id
+          : index + 1,
+        timestamp: timestampStr,
+        period: periodStr,
+        team: tName,
+        player: pName,
+        event_type: typeStr,
+        zone: zoneStr,
+        pass_distance_m: safeNum(event.pass_distance_m),
+        pass_accuracy: safeNum(event.pass_accuracy),
+        pass_difficulty_rating: safeNum(event.pass_difficulty_rating),
+        pressure_intensity_rating: safeNum(event.pressure_intensity_rating),
+        player_speed_kmh: safeNum(event.player_speed_kmh),
+        shot_speed_kmh: safeNum(event.shot_speed_kmh),
+        ball_speed_kmh: safeNum(event.ball_speed_kmh),
+        xg: safeNum(event.xg),
+      };
+    })
+    .sort((left, right) => {
+      try {
+        const getSecs = (ev) => {
+          const match = String(ev.timestamp || "").match(/(\d+)(?::(\d{1,2}))?/);
+          if (!match) return 0;
+          const halfOffset = /2nd|second/i.test(String(ev.period)) ? 2700 : 0;
+          return halfOffset + Number(match[1] || 0) * 60 + Number(match[2] || 0);
+        };
+        return getSecs(left) - getSecs(right);
+      } catch {
+        return 0;
+      }
+    });
+
+  const metadataObj =
+    data.match_metadata && typeof data.match_metadata === "object"
+      ? data.match_metadata
+      : {};
 
   return {
     ...data,
     match_id:
-      data.match_id ||
+      safeString(data.match_id) ||
       `${homeTeam}-${awayTeam}`
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/-$/, "")
         .toUpperCase(),
-    fixture: fixtureText,
+    fixture: `${homeTeam} vs ${awayTeam}`,
     home_team: homeTeam,
     away_team: awayTeam,
     competition:
-      data.competition ||
-      data.match_metadata?.competition ||
-      "Uploaded fixture",
+      safeString(data.competition) ||
+      safeString(metadataObj.competition) ||
+      "Uploaded Match Data",
     match_metadata: {
-      ...(data.match_metadata || {}),
-      stadium: data.match_metadata?.stadium || data.stadium || "Uploaded data",
-      minute: data.match_metadata?.minute || data.minute || "—",
+      ...metadataObj,
+      stadium:
+        safeString(metadataObj.stadium) ||
+        safeString(data.stadium) ||
+        "Uploaded Match Stadium",
+      minute: safeString(metadataObj.minute) || safeString(data.minute) || "45+2",
     },
     events,
   };
@@ -174,34 +216,15 @@ function AnalysisCard({
   breakdown,
   controlChaos,
   speedAlerts,
-  audienceMode,
   language,
-  focusedPlayer,
 }) {
   return (
     <div className="analysis-stack">
-      {(audienceMode || language || focusedPlayer) && (
+      {language && language !== "en" && (
         <div className="analysis-personalization-pill-row">
-          {audienceMode && (
-            <span className="analysis-pill pill-mode">
-              <SlidersHorizontal size={11} />
-              {audienceMode === "casual"
-                ? "Casual Fan View"
-                : audienceMode === "broadcast"
-                  ? "Broadcast Overlay View"
-                  : "Tactical Analyst View"}
-            </span>
-          )}
-          {focusedPlayer && (
-            <span className="analysis-pill pill-player">
-              <UserCheck size={11} /> {focusedPlayer} Spotlight
-            </span>
-          )}
-          {language && language !== "en" && (
-            <span className="analysis-pill pill-lang">
-              <Languages size={11} /> {language.toUpperCase()} Output
-            </span>
-          )}
+          <span className="analysis-pill pill-lang">
+            <Languages size={11} /> {language.toUpperCase()} Output
+          </span>
         </div>
       )}
 
@@ -336,19 +359,18 @@ export default function App() {
   const studioRef = useRef(null);
   const scrollCueRef = useRef(null);
   const [match, setMatch] = useState(null);
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [matchError, setMatchError] = useState("");
-  const [matchLoading, setMatchLoading] = useState(true);
+  const [matchLoading, setMatchLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sourceMode, setSourceMode] = useState("match");
-  const [matchSourceName, setMatchSourceName] = useState("Synthetic fixture");
+  const [matchSourceName, setMatchSourceName] = useState("No file uploaded");
   const [matchUploadError, setMatchUploadError] = useState("");
-  const [audienceMode, setAudienceMode] = useState("analyst");
   const [language, setLanguage] = useState("en");
-  const [focusedPlayer, setFocusedPlayer] = useState(null);
   const [showBroadcastOverlay, setShowBroadcastOverlay] = useState(false);
   const [activePipelineStage, setActivePipelineStage] = useState(null);
   const [latestControlChaos, setLatestControlChaos] = useState({
@@ -363,31 +385,14 @@ export default function App() {
   const bottomRef = useRef(null);
   const conversationRef = useRef(null);
 
-  const loadMatch = useCallback(async () => {
-    setMatchLoading(true);
-    setMatchError("");
-    try {
-      const response = await fetch("/api/match", {
-        signal: AbortSignal.timeout(10000),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success)
-        throw new Error(data.error || "Match data unavailable.");
-      setMatch(data.matchData);
-    } catch (fetchError) {
-      setMatchError(
-        fetchError.name === "TimeoutError"
-          ? "Match data request timed out. Check that the backend is running."
-          : fetchError.message,
-      );
-    } finally {
-      setMatchLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadMatch();
-  }, [loadMatch]);
+    const conversation = conversationRef.current;
+    if (!conversation) return;
+    conversation.scrollTo({
+      top: conversation.scrollHeight,
+      behavior: messages.length > 1 ? "smooth" : "auto",
+    });
+  }, [messages, loading]);
 
   useEffect(() => {
     const conversation = conversationRef.current;
@@ -508,8 +513,8 @@ export default function App() {
   async function handleMatchUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 256 * 1024) {
-      setMatchUploadError("JSON file must be 256 KB or smaller.");
+    if (file.size > 512 * 1024) {
+      setMatchUploadError("JSON file must be 512 KB or smaller.");
       event.target.value = "";
       return;
     }
@@ -523,16 +528,25 @@ export default function App() {
     }
     setMatchUploadError("");
     try {
-      const uploaded = JSON.parse(await file.text());
-      if (!Array.isArray(uploaded.events) || uploaded.events.length === 0) {
-        throw new Error("JSON must contain a non-empty events array.");
+      const text = await file.text();
+      let uploaded;
+      try {
+        uploaded = JSON.parse(text);
+      } catch {
+        throw new Error("File contains invalid JSON syntax.");
       }
-      setMatch(normalizeUploadedMatch(uploaded));
+
+      const normalized = normalizeUploadedMatch(uploaded);
+      if (!normalized || !Array.isArray(normalized.events) || normalized.events.length === 0) {
+        throw new Error("JSON must contain match events (e.g. an 'events' array or an array of event objects).");
+      }
+      setMatch(normalized);
+      setIsFileUploaded(true);
       setMatchSourceName(file.name);
       setSourceMode("match");
     } catch (uploadError) {
       setMatchUploadError(
-        uploadError.message || "Could not read that JSON file.",
+        uploadError.message || "Could not read or parse that JSON match file.",
       );
     } finally {
       event.target.value = "";
@@ -542,8 +556,8 @@ export default function App() {
   async function askQuestion(question = query) {
     const text = question.trim();
     if (!text || loading) return;
-    if (sourceMode === "match" && !match) {
-      setError("Load match JSON or switch to Football data.");
+    if (sourceMode === "match" && (!isFileUploaded || !match)) {
+      setError("Please upload a match JSON file first to enable match data chat.");
       return;
     }
 
@@ -562,14 +576,21 @@ export default function App() {
         body: JSON.stringify({
           userQuery: text,
           sourceMode,
-          audienceMode,
+          audienceMode: "analyst",
           language,
-          focusedPlayer,
           matchData: sourceMode === "match" ? match : undefined,
         }),
         signal: AbortSignal.timeout(45000),
       });
-      const result = await response.json();
+
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error("Backend returned an unparseable response. Please verify the server connection.");
+      }
+
       if (!response.ok || !result.success)
         throw new Error(result.error || "Analysis failed.");
 
@@ -592,15 +613,13 @@ export default function App() {
           evidence: result.evidence,
           controlChaos: result.controlChaos,
           speedAlerts: result.speedAlerts,
-          audienceMode: result.audienceMode || audienceMode,
           language: result.language || language,
-          focusedPlayer: result.focusedPlayer || focusedPlayer,
         },
       ]);
     } catch (requestError) {
       setError(
         requestError.name === "TimeoutError"
-          ? "Analysis timed out. Check the Azure OpenAI connection and try again."
+          ? "Analysis timed out. Please try again."
           : requestError.name === "AbortError"
             ? "The analysis request was cancelled."
             : requestError.message,
@@ -615,7 +634,7 @@ export default function App() {
   const home = match?.home_team || "Home";
   const away = match?.away_team || "Away";
   const minute = match?.match_metadata?.minute || "LIVE";
-  const commonQuestions = popularQuestions(home, away, focusedPlayer, audienceMode);
+  const commonQuestions = popularQuestions(home, away);
   function safeSourceLink(link) {
     try {
       const url = new URL(link);
@@ -660,13 +679,6 @@ export default function App() {
         <div className="studio-shell scrub-studio" ref={studioRef}>
           <header className="topbar">
             <div className="brand-lockup">
-              <button
-                className="mobile-menu icon-button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open match sidebar"
-              >
-                <Menu size={19} />
-              </button>
               <div className="brand-mark">
                 <span>T</span>
                 <i />
@@ -734,243 +746,6 @@ export default function App() {
           </header>
 
           <div className="studio-layout">
-            <div
-              className={`sidebar-backdrop ${sidebarOpen ? "is-open" : ""}`}
-              onClick={() => setSidebarOpen(false)}
-            />
-            <aside
-              className={`match-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}
-            >
-              <div className="sidebar-head">
-                <div>
-                  <div className="eyebrow">
-                    <span className="live-dot" />{" "}
-                    {sourceMode === "match"
-                      ? matchSourceName === "Synthetic fixture"
-                        ? "MATCH CONTEXT"
-                        : "UPLOADED DATA"
-                      : "WEB CONTEXT"}
-                  </div>
-                  <h1>
-                    {sourceMode === "match"
-                      ? matchSourceName === "Synthetic fixture"
-                        ? "Synthetic match"
-                        : matchSourceName
-                      : "Web Intelligence"}
-                  </h1>
-                </div>
-                <button
-                  className="icon-button close-sidebar"
-                  onClick={() => setSidebarOpen(false)}
-                  aria-label="Close sidebar"
-                >
-                  <X size={18} />
-                </button>
-                <span className="live-pill">
-                  <i />{" "}
-                  {sourceMode === "match"
-                    ? matchSourceName === "Synthetic fixture"
-                      ? "SYNTHETIC"
-                      : "UPLOADED"
-                    : "WEB SEARCH"}
-                </span>
-              </div>
-
-              {sourceMode === "web" ? (
-                <section className="sidebar-section web-source-panel">
-                  <div className="section-heading">
-                    <span className="eyebrow">SEARCH SOURCES</span>
-                    <span className="event-count">
-                      {String(latestSources.length).padStart(2, "0")} SOURCES
-                    </span>
-                  </div>
-                  {latestSources.length ? (
-                    latestSources.map((source, index) => (
-                      <a
-                        className="source-result web-grounded-item"
-                        key={`${source.uri || index}-${index}`}
-                        href={source.uri}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <span className="source-index">0{index + 1}</span>
-                        <div className="source-info">
-                          <strong>{source.title || source.domain}</strong>
-                          <small>{source.domain || "Web source"}</small>
-                        </div>
-                        <ExternalLink size={12} className="source-card-link-icon" />
-                      </a>
-                    ))
-                  ) : (
-                    <div className="feed-empty">
-                      Live Google Search sources will appear here when you submit a question in Web mode.
-                    </div>
-                  )}
-                </section>
-              ) : (
-                <>
-                  <section className="match-card">
-                    <div className="match-card-top">
-                      <span>{match?.competition || "MATCH DATA"}</span>
-                      <span>{match?.match_id || "MATCH 09"}</span>
-                    </div>
-                    <div className="scoreboard">
-                      <div className="team">
-                        <span className="team-crest arsenal">
-                          {home.slice(0, 1)}
-                        </span>
-                        <span>{home}</span>
-                      </div>
-                      <div className="score">
-                        <strong>
-                          — <b>:</b> —
-                        </strong>
-                        <span>{minute}&apos;</span>
-                      </div>
-                      <div className="team team-away">
-                        <span className="team-crest chelsea">
-                          {away.slice(0, 1)}
-                        </span>
-                        <span>{away}</span>
-                      </div>
-                    </div>
-                    <div className="match-card-bottom">
-                      <span>
-                        <Radio size={12} />{" "}
-                        {match?.match_metadata?.stadium || "Synthetic stadium"}
-                      </span>
-                      <span>
-                        {match?.match_metadata?.period || "FULL DATASET"}
-                      </span>
-                    </div>
-                  </section>
-
-                  <section className="sidebar-section">
-                    <div className="section-heading">
-                      <span className="eyebrow">MATCH EVENTS</span>
-                      <span className="event-count">
-                        {String(events.length).padStart(2, "0")} EVENTS
-                      </span>
-                    </div>
-                    <div className="event-list">
-                      {events.length ? (
-                        events.map((event, index) => (
-                          <EventRow
-                            key={`${event.timestamp}-${index}`}
-                            event={event}
-                          />
-                        ))
-                      ) : (
-                        <div className="feed-empty">
-                          {matchError || "No match events loaded"}
-                          {matchError && (
-                            <button
-                              className="feed-retry"
-                              onClick={loadMatch}
-                              disabled={matchLoading}
-                            >
-                              {matchLoading ? "RETRYING…" : "RETRY CONNECTION"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {events.length > 0 && (
-                      <button
-                        className="feed-link"
-                        onClick={() =>
-                          askQuestion(
-                            "Summarize the key moments in this synthetic match data.",
-                          )
-                        }
-                      >
-                        ANALYZE ALL MOMENTS <ArrowUpRight size={13} />
-                      </button>
-                    )}
-                  </section>
-
-                  <section className="sidebar-section insight-card control-chaos-card">
-                    <div className="section-heading">
-                      <span className="eyebrow">TACTICAL EXPLAINABILITY</span>
-                      <Gauge size={14} className="pulse-icon text-green" />
-                    </div>
-                    <div className="pulse-main">
-                      <span>CONTROL vs CHAOS</span>
-                      <strong>
-                        {latestControlChaos.controlScore}% <small>CONTROL</small>
-                      </strong>
-                    </div>
-                    <div className="control-chaos-dual-bar">
-                      <div
-                        className="control-bar-fill"
-                        style={{ width: `${latestControlChaos.controlScore}%` }}
-                        title={`${latestControlChaos.controlScore}% Structured Control`}
-                      />
-                      <div
-                        className="chaos-bar-fill"
-                        style={{ width: `${latestControlChaos.chaosScore}%` }}
-                        title={`${latestControlChaos.chaosScore}% Transition Chaos`}
-                      />
-                    </div>
-                    <div className="pulse-notes">
-                      <span className="control-label">
-                        <Shield size={11} /> {latestControlChaos.controlScore}% POSITIONAL
-                      </span>
-                      <span className="chaos-label">
-                        <Flame size={11} /> {latestControlChaos.chaosScore}% TRANSITION
-                      </span>
-                    </div>
-                    <p className="control-summary-text">
-                      {latestControlChaos.summary}
-                    </p>
-                  </section>
-
-                  <section className="sidebar-section threshold-radar-card">
-                    <div className="section-heading">
-                      <span className="eyebrow">SPEED &amp; PHYSICAL RADAR</span>
-                      <Zap size={14} className="pulse-icon text-amber" />
-                    </div>
-                    <div className="threshold-metrics-grid">
-                      <div className="threshold-metric-box">
-                        <small>SPRINT BURST PEAK</small>
-                        <strong>33.8 <span className="unit">km/h</span></strong>
-                        <span>Threshold &gt; 30 km/h</span>
-                      </div>
-                      <div className="threshold-metric-box">
-                        <small>PASS DIFFICULTY</small>
-                        <strong>7.8 <span className="unit">/10</span></strong>
-                        <span>Vertical Trajectory</span>
-                      </div>
-                    </div>
-                    <div className="recent-sprints-list">
-                      <div className="sprint-entry">
-                        <span className="sprint-player">B. Saka</span>
-                        <span className="sprint-speed-badge">33.8 km/h</span>
-                        <span className="sprint-time">14:22</span>
-                      </div>
-                      <div className="sprint-entry">
-                        <span className="sprint-player">Son H.M.</span>
-                        <span className="sprint-speed-badge">32.4 km/h</span>
-                        <span className="sprint-time">28:45</span>
-                      </div>
-                      <div className="sprint-entry">
-                        <span className="sprint-player">G. Martinelli</span>
-                        <span className="sprint-speed-badge">33.1 km/h</span>
-                        <span className="sprint-time">41:09</span>
-                      </div>
-                    </div>
-                  </section>
-                </>
-              )}
-
-              <div className="sidebar-foot">
-                <span className="azure-orbit">✦</span>
-                <span>
-                  POWERED BY <b>MICROSOFT AZURE AI FOUNDRY</b>
-                </span>
-              </div>
-            </aside>
-
             <section className="workspace">
               <div className="workspace-heading">
                 <div>
@@ -993,84 +768,116 @@ export default function App() {
               </div>
 
               {/* 5-STAGE SYNTHETIC INSIGHTS PIPELINE */}
-              <div className="pipeline-strip">
-                <div className="pipeline-label">
-                  <Layers size={12} />
-                  <span>5-STAGE PIPELINE:</span>
+              {isFileUploaded && match ? (
+                <div className="pipeline-strip">
+                  <div className="pipeline-label">
+                    <Layers size={13} />
+                    <span>5-STAGE PIPELINE:</span>
+                  </div>
+                  <div className="pipeline-steps">
+                    {PIPELINE_STAGES.map((stg) => (
+                      <button
+                        type="button"
+                        key={stg.id}
+                        className={`pipeline-step-item ${activePipelineStage === stg.id ? "active" : ""}`}
+                        onClick={() =>
+                          setActivePipelineStage(activePipelineStage === stg.id ? null : stg.id)
+                        }
+                        title={`${stg.name}: ${stg.desc}`}
+                      >
+                        <span className="stg-num">{stg.tag}</span>
+                        <span className="stg-name">{stg.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="pipeline-steps">
-                  {PIPELINE_STAGES.map((stg) => (
-                    <button
-                      type="button"
-                      key={stg.id}
-                      className={`pipeline-step-item ${activePipelineStage === stg.id ? "active" : ""}`}
-                      onClick={() =>
-                        setActivePipelineStage(activePipelineStage === stg.id ? null : stg.id)
-                      }
-                      title={`${stg.name}: ${stg.desc}`}
-                    >
-                      <span className="stg-num">{stg.tag}</span>
-                      <span className="stg-name">{stg.name}</span>
-                    </button>
-                  ))}
+              ) : (
+                <div className="pipeline-upload-prompt">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Upload size={14} style={{ color: "#b2f36b" }} />
+                    <span>5-STAGE PIPELINE LOCKED — UPLOAD A MATCH JSON FILE TO UNLOCK INSIGHTS &amp; MATCH CHAT</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="upload-prompt-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload Match File
+                  </button>
                 </div>
-              </div>
+              )}
               {activePipelineStage && (
                 <div className="pipeline-stage-detail-callout">
                   <div className="stage-detail-header">
-                    <strong>
-                      Stage {PIPELINE_STAGES[activePipelineStage - 1].tag} — {PIPELINE_STAGES[activePipelineStage - 1].name}: {PIPELINE_STAGES[activePipelineStage - 1].label}
-                    </strong>
-                    <button type="button" onClick={() => setActivePipelineStage(null)}>
-                      <X size={12} />
+                    <div className="stage-title-wrap">
+                      <span className="stage-badge">STAGE {PIPELINE_STAGES[activePipelineStage - 1].tag}</span>
+                      <strong>{PIPELINE_STAGES[activePipelineStage - 1].name} — {PIPELINE_STAGES[activePipelineStage - 1].label}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="stage-close-btn"
+                      onClick={() => setActivePipelineStage(null)}
+                      aria-label="Close stage details"
+                    >
+                      <X size={14} />
                     </button>
                   </div>
-                  <p>{PIPELINE_STAGES[activePipelineStage - 1].desc}</p>
+                  <p className="stage-desc">{PIPELINE_STAGES[activePipelineStage - 1].desc}</p>
+                  <div className="stage-action-row">
+                    {activePipelineStage === 1 && (
+                      <button
+                        type="button"
+                        className="stage-action-btn"
+                        onClick={() => askQuestion("Summarize the key ingested synthetic match events")}
+                      >
+                        <Radio size={13} /> Inspect Ingested Synthetic Events ({match?.events?.length || 100} events)
+                      </button>
+                    )}
+                    {activePipelineStage === 2 && (
+                      <button
+                        type="button"
+                        className="stage-action-btn"
+                        onClick={() => askQuestion("Identify players crossing high-speed sprint thresholds (>30 km/h) and pass difficulty")}
+                        disabled={loading || !match}
+                      >
+                        <Zap size={13} /> Run Pattern & Sprint Interpretation
+                      </button>
+                    )}
+                    {activePipelineStage === 3 && (
+                      <button
+                        type="button"
+                        className="stage-action-btn"
+                        onClick={() => askQuestion("Explain the Control vs Chaos balance across zones and why it matters")}
+                        disabled={loading || !match}
+                      >
+                        <Gauge size={13} /> Trigger Tactical Explainability Engine
+                      </button>
+                    )}
+                    {activePipelineStage === 4 && (
+                      <button
+                        type="button"
+                        className="stage-action-btn highlight-btn"
+                        onClick={() => setShowBroadcastOverlay(true)}
+                      >
+                        <Tv size={13} /> Launch Live Broadcast HUD Overlay
+                      </button>
+                    )}
+                    {activePipelineStage === 5 && (
+                      <button
+                        type="button"
+                        className="stage-action-btn"
+                        onClick={() => {
+                          const idx = LANGUAGES.findIndex((l) => l.code === language);
+                          const nextLang = LANGUAGES[(idx + 1) % LANGUAGES.length].code;
+                          setLanguage(nextLang);
+                        }}
+                      >
+                        <Languages size={13} /> Cycle Language ({language.toUpperCase()})
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
-
-              {/* AUDIENCE & PLAYER PERSONALIZATION HUB */}
-              <div className="personalization-bar">
-                <div className="audience-mode-pills">
-                  <span className="control-group-label">
-                    <SlidersHorizontal size={11} /> AUDIENCE:
-                  </span>
-                  {AUDIENCE_MODES.map((mode) => (
-                    <button
-                      key={mode.id}
-                      type="button"
-                      className={`audience-pill ${audienceMode === mode.id ? "active" : ""}`}
-                      onClick={() => setAudienceMode(mode.id)}
-                      title={mode.desc}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="player-focus-pills">
-                  <span className="control-group-label">
-                    <UserCheck size={11} /> PLAYER FOCUS:
-                  </span>
-                  <button
-                    type="button"
-                    className={`player-focus-chip ${focusedPlayer === null ? "active" : ""}`}
-                    onClick={() => setFocusedPlayer(null)}
-                  >
-                    All Match
-                  </button>
-                  {SPOTLIGHT_PLAYERS.map((pl) => (
-                    <button
-                      key={pl}
-                      type="button"
-                      className={`player-focus-chip ${focusedPlayer === pl ? "active" : ""}`}
-                      onClick={() => setFocusedPlayer(focusedPlayer === pl ? null : pl)}
-                    >
-                      {pl.split(" ").pop()}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <div
                 ref={conversationRef}
@@ -1156,7 +963,9 @@ export default function App() {
                           >
                             <i /> <b>SAKA</b>
                           </span>
-                          <span className="pitch-player arsenal-player player-b">
+                          <span
+                            className="pitch-player arsenal-player player-b"
+                          >
                             <i /> <b>ØDEGAARD</b>
                           </span>
                           <span className="pitch-player arsenal-player player-c">
@@ -1204,10 +1013,23 @@ export default function App() {
                         </b>
                       </div>
                     </div>
+
+                    {language !== "en" && (
+                      <div className="active-lens-indicator">
+                        <Sparkles size={12} />
+                        <span>
+                          STORYTELLING LANGUAGE:{" "}
+                          <strong className="lens-highlight lang-highlight">
+                            {language.toUpperCase()}
+                          </strong>
+                        </span>
+                      </div>
+                    )}
+
                     <div className="suggestion-list">
                       {(sourceMode === "web"
                         ? webSuggestions
-                        : matchSuggestions
+                        : commonQuestions.slice(0, 3)
                       ).map((suggestion, index) => (
                         <button
                           key={suggestion}
@@ -1239,7 +1061,48 @@ export default function App() {
                           <div
                             className={`assistant-answer ${message.kind === "general" ? "assistant-general" : ""}`}
                           >
-                            {message.kind === "general" ||
+                            {message.kind === "web" && message.breakdown ? (
+                              <>
+                                <div className="answer-brand">
+                                  <span className="mini-mark">T</span>
+                                  <span>TACTIQ INTELLIGENCE</span>
+                                  <i>WEB GROUNDED</i>
+                                </div>
+                                <AnalysisCard
+                                  breakdown={message.breakdown}
+                                  language={message.language}
+                                />
+                                {message.sources?.length > 0 && (
+                                  <div className="grounded-sources-block" style={{ marginTop: "12px" }}>
+                                    <div className="sources-label">
+                                      <Globe2 size={12} />
+                                      <span>VERIFIED SEARCH SOURCES</span>
+                                    </div>
+                                    <div className="web-source-grid">
+                                      {message.sources.map((source, index) => (
+                                        <a
+                                          key={`${source.uri || index}-${index}`}
+                                          href={source.uri}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="web-source-card"
+                                        >
+                                          <div className="web-source-card-top">
+                                            <span className="source-domain-tag">
+                                              {source.domain || "web"}
+                                            </span>
+                                            <ExternalLink size={11} className="card-ext-icon" />
+                                          </div>
+                                          <div className="source-card-title">
+                                            {source.title || source.domain}
+                                          </div>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            ) : message.kind === "general" ||
                             message.kind === "web" ? (
                               <>
                                 <div className="answer-brand">
@@ -1297,9 +1160,7 @@ export default function App() {
                                   breakdown={message.breakdown}
                                   controlChaos={message.controlChaos}
                                   speedAlerts={message.speedAlerts}
-                                  audienceMode={message.audienceMode}
                                   language={message.language}
-                                  focusedPlayer={message.focusedPlayer}
                                 />
                                 {message.evidence && (
                                   <div className="analysis-evidence">
@@ -1392,12 +1253,12 @@ export default function App() {
                         hidden
                         onChange={handleMatchUpload}
                       />
-                      <span>{matchSourceName}</span>
+                      <span>{isFileUploaded ? matchSourceName : "No match file uploaded"}</span>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        <Upload size={13} /> Upload JSON
+                        <Upload size={13} /> {isFileUploaded ? "Change JSON" : "Upload JSON"}
                       </button>
                     </div>
                   )}
@@ -1405,7 +1266,20 @@ export default function App() {
                     <div className="source-error">{matchUploadError}</div>
                   )}
                 </div>
-                {sourceMode === "match" && messages.length > 0 && (
+
+                {sourceMode === "match" && !isFileUploaded && (
+                  <div className="source-upload-banner">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <Upload size={13} style={{ color: "#b2f36b" }} />
+                      <span>UPLOAD A MATCH JSON FILE TO ENABLE SYNTHETIC MATCH DATA CHAT</span>
+                    </div>
+                    <button type="button" onClick={() => fileInputRef.current?.click()}>
+                      Upload Match File
+                    </button>
+                  </div>
+                )}
+
+                {sourceMode === "match" && isFileUploaded && messages.length > 0 && (
                   <div
                     className="popular-questions"
                     aria-label="Popular match questions"
@@ -1445,14 +1319,14 @@ export default function App() {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={
                       sourceMode === "match"
-                        ? "Ask a question about this match data..."
-                        : sourceMode === "web"
-                          ? "Ask for fixtures, standings, or current football records..."
-                          : "Ask TactIQ anything..."
+                        ? isFileUploaded && match
+                          ? "Ask about build-up sequences, pass difficulty, speed bursts, or pressure traps..."
+                          : "Upload a match JSON file to ask match questions..."
+                        : "Ask for fixtures, standings, or current football records..."
                     }
                     aria-label="Ask TactIQ"
                     maxLength={1000}
-                    disabled={loading || (sourceMode === "match" && !match)}
+                    disabled={loading || (sourceMode === "match" && (!isFileUploaded || !match))}
                   />
                   <span className="composer-shortcut">
                     <CornerDownLeft size={13} /> ENTER
@@ -1462,7 +1336,7 @@ export default function App() {
                     disabled={
                       !query.trim() ||
                       loading ||
-                      (sourceMode === "match" && !match)
+                      (sourceMode === "match" && (!isFileUploaded || !match))
                     }
                     aria-label="Send question"
                   >
@@ -1555,7 +1429,7 @@ export default function App() {
                 <div className="hud-tactical-card">
                   <div className="hud-card-header">
                     <Zap size={14} />
-                    <span>PLAYER SPOTLIGHT · {focusedPlayer || "Bukayo Saka"}</span>
+                    <span>PHYSICAL PERFORMANCE & SPRINT METRICS</span>
                   </div>
                   <div className="hud-spotlight-stats">
                     <div className="hud-stat-box">
@@ -1589,11 +1463,7 @@ export default function App() {
                 </div>
                 <div className="hud-banner-narrative">
                   <span className="hud-banner-tag">
-                    {audienceMode === "casual"
-                      ? "FAN NARRATIVE"
-                      : audienceMode === "broadcast"
-                        ? "ON-AIR TAKEAWAY"
-                        : "TACTICAL EXPLAINABILITY"}
+                    TACTICAL EXPLAINABILITY
                   </span>
                   <p className="hud-banner-text">
                     {messages.findLast?.((m) => m.role === "assistant" && m.breakdown)?.[
@@ -1604,7 +1474,7 @@ export default function App() {
                 </div>
                 <div className="hud-banner-pills">
                   <span className="hud-pill">{language.toUpperCase()}</span>
-                  <span className="hud-pill">{audienceMode.toUpperCase()}</span>
+                  <span className="hud-pill">MATCH INTEL</span>
                 </div>
               </div>
             </div>

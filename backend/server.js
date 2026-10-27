@@ -137,68 +137,121 @@ function boundedText(value, fallback = "") {
     : fallback;
 }
 
+function safeString(val, fallback = "") {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    if (typeof val.name === "string" && val.name.trim()) return val.name.trim();
+    if (typeof val.team_name === "string" && val.team_name.trim()) return val.team_name.trim();
+    if (typeof val.player_name === "string" && val.player_name.trim()) return val.player_name.trim();
+    if (typeof val.title === "string" && val.title.trim()) return val.title.trim();
+    if (typeof val.label === "string" && val.label.trim()) return val.label.trim();
+    if (typeof val.text === "string" && val.text.trim()) return val.text.trim();
+    if (typeof val.value === "string" && val.value.trim()) return val.value.trim();
+  }
+  return fallback;
+}
+
 function safeNumber(value) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 }
 
 function normalizeMatchData(data) {
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
+  if (!data || typeof data !== "object") {
     return null;
   }
 
-  const fixtureText =
-    typeof data.fixture === "string" ? data.fixture : data.match_id || "Match";
-  const fixtureParts = String(fixtureText).split(/\s+vs\s+/i);
-  const homeTeam = data.home_team || fixtureParts[0] || "Home";
-  const awayTeam = data.away_team || fixtureParts[1] || "Away";
+  const rawEvents = Array.isArray(data)
+    ? data
+    : Array.isArray(data.events)
+      ? data.events
+      : Array.isArray(data.match_events)
+        ? data.match_events
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
 
-  const rawEvents = Array.isArray(data.events)
-    ? data.events.slice(0, MAX_EVENTS)
-    : [];
+  const fixtureText =
+    safeString(data.fixture) || safeString(data.match_id) || "Match";
+  const fixtureParts = fixtureText.split(/\s+vs\s+/i);
+  const homeTeam =
+    safeString(data.home_team) || safeString(fixtureParts[0]) || "Home";
+  const awayTeam =
+    safeString(data.away_team) || safeString(fixtureParts[1]) || "Away";
+
   const events = rawEvents
+    .slice(0, MAX_EVENTS)
     .map((event, index) => {
-      if (!event || typeof event !== "object" || Array.isArray(event))
-        return null;
+      if (!event || typeof event !== "object") return null;
+
+      const pName =
+        safeString(event.player) ||
+        safeString(event.player_name) ||
+        "Player";
+      const tName =
+        safeString(event.team) ||
+        safeString(event.team_name) ||
+        homeTeam;
+      const typeStr =
+        safeString(event.event_type) ||
+        safeString(event.type) ||
+        safeString(event.type_name) ||
+        "event";
+      const periodStr = safeString(event.period) || "1st Half";
+      const timestampStr = safeString(event.timestamp) || `${index + 1}:00`;
+      const zoneStr = safeString(event.zone) || "Pitch";
+
       return {
         event_id: Number.isSafeInteger(event.event_id)
           ? event.event_id
           : index + 1,
-        timestamp:
-          boundedText(event.timestamp, `${index + 1}:00`) || `${index + 1}:00`,
-        period: boundedText(event.period, "1st Half") || "1st Half",
-        team: boundedText(event.team, homeTeam) || homeTeam,
-        player: boundedText(event.player, "Player") || "Player",
-        event_type: boundedText(event.event_type, "event") || "event",
-        zone: boundedText(event.zone, "Unknown Zone") || "Unknown Zone",
-        target_player: boundedText(event.target_player),
+        timestamp: boundedText(timestampStr, `${index + 1}:00`),
+        period: boundedText(periodStr, "1st Half"),
+        team: boundedText(tName, homeTeam),
+        player: boundedText(pName, "Player"),
+        event_type: boundedText(typeStr, "event"),
+        zone: boundedText(zoneStr, "Unknown Zone"),
+        target_player: boundedText(safeString(event.target_player)),
         xg: safeNumber(event.xg),
         goal: typeof event.goal === "boolean" ? event.goal : null,
         success: typeof event.success === "boolean" ? event.success : null,
         pass_distance_m: safeNumber(event.pass_distance_m),
         pass_accuracy: safeNumber(event.pass_accuracy),
+        pass_difficulty_rating: safeNumber(event.pass_difficulty_rating),
         pressure_intensity_rating: safeNumber(event.pressure_intensity_rating),
+        player_speed_kmh: safeNumber(event.player_speed_kmh),
+        shot_speed_kmh: safeNumber(event.shot_speed_kmh),
         ball_speed_kmh: safeNumber(event.ball_speed_kmh),
       };
     })
     .filter(Boolean);
 
+  const metadataObj =
+    data.match_metadata && typeof data.match_metadata === "object"
+      ? data.match_metadata
+      : {};
+
   return {
     ...data,
     match_id:
-      data.match_id ||
+      safeString(data.match_id) ||
       `${String(homeTeam).replace(/\s+/g, "-").toLowerCase()}-${String(awayTeam).replace(/\s+/g, "-").toLowerCase()}`,
-    fixture: fixtureText,
+    fixture: `${homeTeam} vs ${awayTeam}`,
     home_team: homeTeam,
     away_team: awayTeam,
     match_metadata: {
-      ...(data.match_metadata || {}),
+      ...metadataObj,
       stadium:
-        data.match_metadata?.stadium || data.stadium || "Synthetic Stadium",
-      minute: data.match_metadata?.minute || data.minute || "45+2",
+        safeString(metadataObj.stadium) || safeString(data.stadium) || "Synthetic Stadium",
+      minute: safeString(metadataObj.minute) || safeString(data.minute) || "45+2",
       competition:
-        data.match_metadata?.competition ||
-        data.competition ||
-        "Premier League",
+        safeString(metadataObj.competition) || safeString(data.competition) || "Premier League",
     },
     events: sortEvents(events),
   };
@@ -417,36 +470,81 @@ async function searchWebWithGemini(userQuery) {
   const ai = getGeminiClient();
   let response;
 
+  const currentYear = new Date().getFullYear(); // 2026
+  const systemInstruction = `You are TactIQ, an elite real-time football intelligence engine.
+CRITICAL GROUNDING & FORMATTING DIRECTIVE:
+- Today's date is in the year ${currentYear}.
+- You MUST ALWAYS perform a live web search using googleSearch to find current, real-time football data, live/recent scores, current season standings, upcoming fixtures, and team news for ${currentYear}.
+- NEVER state that your knowledge is limited to January 2025 or any past cutoff date.
+- Format your response as a valid JSON object with exactly two fields:
+{
+  "explain": "A detailed explanation of the football query backed by live web search findings.",
+  "synthesize": "A concise broadcast-ready takeaway summarizing key conclusions."
+}
+- Do NOT wrap JSON in markdown backticks or code blocks.`;
+
   try {
     response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: `You are TactIQ, an elite football intelligence analyst.
-Answer the user's question with accurate football details, match facts, live/recent scores, or tactical insight.
-Question: ${userQuery.trim()}`,
+      model: "gemini-3.8-flash",
+      contents: `Question: ${userQuery.trim()}`,
       config: {
+        systemInstruction,
         tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
       },
     });
   } catch (searchError) {
     console.warn(
-      "Search Grounding tool skipped, generating response with model:",
+      "Search Grounding tool skipped or encountered an error, fallback query execution:",
       searchError.message,
     );
     response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: `You are TactIQ, an elite football intelligence analyst.
-Answer the user's question with accurate football details, match facts, or tactical insight.
-Question: ${userQuery.trim()}`,
+      model: "gemini-3.8-flash",
+      contents: `You are TactIQ, an elite football intelligence analyst operating in ${currentYear}. Return JSON with "explain" and "synthesize" fields answering: ${userQuery.trim()}`,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+      },
     });
   }
 
-  const answer = response.text || "";
+  const rawText = response.text || "";
+  let explain = rawText.trim();
+  let synthesize = "Broadcast Takeaway: Live web grounded insights retrieved for the query.";
+
+  try {
+    const parsed = typeof rawText === "string" ? JSON.parse(rawText) : rawText;
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.explain === "string" && parsed.explain.trim()) {
+        explain = parsed.explain.trim();
+      }
+      if (typeof parsed.synthesize === "string" && parsed.synthesize.trim()) {
+        synthesize = parsed.synthesize.trim();
+      }
+    }
+  } catch {
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsedMatch = JSON.parse(jsonMatch[0]);
+        if (parsedMatch.explain) explain = String(parsedMatch.explain).trim();
+        if (parsedMatch.synthesize) synthesize = String(parsedMatch.synthesize).trim();
+      } catch {}
+    }
+  }
+
   const chunks =
     response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const sources = extractSearchSources(chunks);
 
+  const breakdown = [
+    { key: "explain", title: "Explain", content: explain },
+    { key: "synthesize", title: "Takeaway", content: synthesize },
+  ];
+
   return {
-    answer: answer.trim(),
+    answer: explain,
+    breakdown,
     sources,
   };
 }
@@ -592,13 +690,14 @@ app.post(["/api/analyze-match", "/analyze-match"], async (req, res) => {
         });
       }
       try {
-        const { answer, sources } = await withDeadline(() =>
+        const { answer, breakdown, sources } = await withDeadline(() =>
           searchWebWithGemini(userQuery.trim()),
         );
         return res.json({
           success: true,
           kind: "web",
           answer,
+          breakdown,
           provider: "Web Search",
           sources,
         });
