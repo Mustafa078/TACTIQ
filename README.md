@@ -19,7 +19,7 @@ TactIQ Studio is an elite, real-time football intelligence engine designed for b
 - **Frontend**: React (Vite), Tailwind CSS, Lucide Icons.
 - **Backend**: Express.js (Node.js).
 - **AI Brain**: GPT mini from foundry that acts as the brain.
-- **Vs Code integrated Co-pilot for creating the whole structure of the application.
+- Vs Code integrated Co-pilot for creating the whole structure of the application.
 - Used Microsoft Azure workflow.
 - **AI Integration**: @google/genai for web search grounding.
 - **Testing**: Node.js built-in test runner.
