@@ -230,38 +230,66 @@ export default function App() {
     let frame = null;
     let renderedProgress = 0;
     let targetProgress = 0;
-    let renderedTime = 0;
+    let pendingTime = null;
+
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+
+    const seekVideo = (time) => {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+      const boundedTime = Math.max(0, Math.min(video.duration - 0.04, time));
+
+      if (video.seeking) {
+        pendingTime = boundedTime;
+        return;
+      }
+
+      if (Math.abs(video.currentTime - boundedTime) > 0.02) {
+        if (typeof video.fastSeek === "function") {
+          try {
+            video.fastSeek(boundedTime);
+          } catch {
+            video.currentTime = boundedTime;
+          }
+        } else {
+          video.currentTime = boundedTime;
+        }
+      }
+    };
+
+    const handleSeeked = () => {
+      if (pendingTime !== null) {
+        const next = pendingTime;
+        pendingTime = null;
+        seekVideo(next);
+      }
+    };
+
+    video.addEventListener("seeked", handleSeeked);
+
     const updateScrub = () => {
       const sceneRect = scene.getBoundingClientRect();
       const distance = scene.offsetHeight - window.innerHeight;
       targetProgress =
         distance > 0 ? Math.max(0, Math.min(1, -sceneRect.top / distance)) : 0;
-      renderedProgress +=
-        (targetProgress - renderedProgress) * (reducedMotion ? 0.32 : 0.16);
-      const easedProgress =
-        renderedProgress * renderedProgress * (3 - 2 * renderedProgress);
+
+      const lerpSpeed = reducedMotion ? 0.38 : 0.28;
+      renderedProgress += (targetProgress - renderedProgress) * lerpSpeed;
+
       if (Number.isFinite(video.duration) && video.duration > 0) {
-        const targetTime = video.duration * easedProgress;
-        renderedTime +=
-          (targetTime - renderedTime) * (reducedMotion ? 0.45 : 0.22);
-        const seekDelta = renderedTime - video.currentTime;
-        if (Math.abs(seekDelta) > 0.012) {
-          video.currentTime = Math.max(
-            0,
-            Math.min(video.duration, video.currentTime + seekDelta * 0.55),
-          );
-        }
+        seekVideo(video.duration * renderedProgress);
       }
-      const reveal = Math.max(0, Math.min(1, (renderedProgress - 0.82) / 0.18));
+
+      const reveal = Math.max(0, Math.min(1, (renderedProgress - 0.8) / 0.2));
       studio.style.opacity = String(reveal);
       studio.style.visibility = reveal > 0.02 ? "visible" : "hidden";
       studio.style.pointerEvents = reveal > 0.9 ? "auto" : "none";
-      cue.style.opacity = String(1 - reveal * 1.4);
+      cue.style.opacity = String(Math.max(0, 1 - reveal * 1.5));
+
       frame = window.requestAnimationFrame(updateScrub);
     };
+
     const syncTarget = () => {
       const sceneRect = scene.getBoundingClientRect();
       const distance = scene.offsetHeight - window.innerHeight;
@@ -270,20 +298,28 @@ export default function App() {
     };
 
     const initializeScrub = () => {
+      syncTarget();
       renderedProgress = targetProgress;
-      renderedTime = video.duration * targetProgress;
-      video.currentTime = renderedTime;
+      if (Number.isFinite(video.duration) && video.duration > 0) {
+        seekVideo(video.duration * targetProgress);
+      }
     };
 
     video.pause();
     syncTarget();
     frame = window.requestAnimationFrame(updateScrub);
-    if (video.readyState >= 1) initializeScrub();
-    else
+
+    if (video.readyState >= 1) {
+      initializeScrub();
+    } else {
       video.addEventListener("loadedmetadata", initializeScrub, { once: true });
+    }
+
     window.addEventListener("scroll", syncTarget, { passive: true });
-    window.addEventListener("resize", syncTarget);
+    window.addEventListener("resize", syncTarget, { passive: true });
+
     return () => {
+      video.removeEventListener("seeked", handleSeeked);
       video.removeEventListener("loadedmetadata", initializeScrub);
       window.removeEventListener("scroll", syncTarget);
       window.removeEventListener("resize", syncTarget);

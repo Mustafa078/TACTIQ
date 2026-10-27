@@ -2157,6 +2157,9 @@ body {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 .scrub-shade {
   position: absolute;
