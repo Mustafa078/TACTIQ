@@ -1,10 +1,38 @@
-# TactIQ Studio - Match Intelligence & Web Search
-- Node.js 20+ / Express backend (`backend/server.js`)
-- React + Vite frontend (`src/App.jsx`)
-- Google Gemini API Search Grounding (`@google/genai`)
+# TactIQ Studio
 
-## Deployment on Vercel
-This repository is fully configured for Vercel deployment via `vercel.json`.
-Set your environment variables in Vercel Project Settings:
-- `GEMINI_API_KEY`: Your Google Gemini API key (starts with AIzaSy...)
-- `AZURE_OPENAI_ENDPOINT` (optional): For Azure OpenAI match analysis mode
+TactIQ Studio is an elite, real-time football intelligence engine designed for broadcast studios and tactical analysts. It automates the ingestion, interpretation, and visualization of football match data, turning raw match logs into broadcast-ready tactical insights.
+
+## Core Features
+
+- **Versatile Data Ingestion**: Supports structured JSON and unstructured match narratives via AI-driven parsing.
+- **5-Stage Tactical Pipeline**:
+  1. **Ingest**: Automated event normalization (passes, shots, pressures).
+  2. **Interpret**: Pattern engine computing metrics like xG, pass difficulty, and sprint thresholds (>30km/h).
+  3. **Explain**: AI-driven tactical context with event citations ([E#]).
+  4. **Render**: Live broadcast HUD overlay for studio commentary.
+  5. **Personalize**: Multi-language storytelling and fan-mode personalization.
+- **Real-Time Intelligence**: Grounded in live web search data to provide current season stats, fixtures, and news without knowledge cutoffs.
+- **Studio-Grade Summaries**: Generates comprehensive, multi-paragraph tactical analyses on command.
+
+## Tech Stack
+
+- **Frontend**: React (Vite), Tailwind CSS, Lucide Icons.
+- **Backend**: Express.js (Node.js).
+- **AI Integration**: @google/genai (Gemini 3.8 Flash) for reasoning and web search grounding.
+- **Testing**: Node.js built-in test runner.
+
+## Quick Start
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure environment variables in `.env` (ensure `GEMINI_API_KEY` is set).
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Run unit tests:
+   ```bash
+   npm test
+   ```

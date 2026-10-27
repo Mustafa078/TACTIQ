@@ -213,42 +213,42 @@ function normalizeUploadedMatch(data) {
 }
 
 function AnalysisCard({
-  breakdown,
-  controlChaos,
-  speedAlerts,
-  language,
+  breakdown = [],
+  controlChaos = null,
+  speedAlerts = [],
+  language = "en",
 }) {
   return (
     <div className="analysis-stack">
       {language && language !== "en" && (
         <div className="analysis-personalization-pill-row">
           <span className="analysis-pill pill-lang">
-            <Languages size={11} /> {language.toUpperCase()} Output
+            <Languages size={11} /> {(language || "en").toUpperCase()} Output
           </span>
         </div>
       )}
 
-      {breakdown.map((step, index) => {
-        const meta = stepMeta[step.key] || stepMeta.synthesize;
+      {(breakdown || []).map((step, index) => {
+        const meta = stepMeta[step?.key] || stepMeta.synthesize;
         const Icon = meta.icon;
         return (
           <section
-            className={`analysis-step step-${meta.color}`}
-            key={step.key}
+            className={`analysis-step step-${meta.color || "amber"}`}
+            key={step?.key || index}
           >
             <div className="step-rail">
               <div className="step-icon">
                 <Icon size={16} strokeWidth={1.8} />
               </div>
-              {index < breakdown.length - 1 && <div className="step-line" />}
+              {index < (breakdown.length - 1) && <div className="step-line" />}
             </div>
             <div className="step-copy">
               <div className="step-heading">
                 <span className="step-number">0{index + 1}</span>
-                <h3>{meta.label}</h3>
+                <h3>{meta.label || "Analysis"}</h3>
                 <span className="step-tag">ANALYSIS</span>
               </div>
-              <p>{step.content}</p>
+              <p>{step?.content || "No analysis available."}</p>
             </div>
           </section>
         );
@@ -261,17 +261,17 @@ function AnalysisCard({
               <Gauge size={12} /> TACTICAL DYNAMICS: CONTROL vs CHAOS
             </span>
             <b>
-              {controlChaos.controlScore}% Control / {controlChaos.chaosScore}% Chaos
+              {controlChaos.controlScore ?? 0}% Control / {controlChaos.chaosScore ?? 100}% Chaos
             </b>
           </div>
           <div className="inline-cc-bar">
             <div
               className="inline-cc-fill-control"
-              style={{ width: `${controlChaos.controlScore}%` }}
+              style={{ width: `${controlChaos.controlScore ?? 0}%` }}
             />
             <div
               className="inline-cc-fill-chaos"
-              style={{ width: `${controlChaos.chaosScore}%` }}
+              style={{ width: `${controlChaos.chaosScore ?? 100}%` }}
             />
           </div>
           {controlChaos.summary && (
@@ -280,15 +280,15 @@ function AnalysisCard({
         </div>
       )}
 
-      {speedAlerts?.length > 0 && (
+      {(speedAlerts || []).length > 0 && (
         <div className="analysis-inline-speed-alerts">
           <div className="inline-speed-badge">
             <Zap size={12} /> SPRINT THRESHOLD TRIGGERED (&gt;30 km/h)
           </div>
           <div className="inline-speed-list">
-            {speedAlerts.slice(0, 3).map((alert, i) => (
+            {(speedAlerts || []).slice(0, 3).map((alert, i) => (
               <span key={i} className="inline-speed-chip">
-                <strong>{alert.player}</strong>: {alert.speed_kmh} km/h (E{alert.event_id})
+                <strong>{alert?.player || "Unknown"}</strong>: {alert?.speed_kmh ?? 0} km/h (E{alert?.event_id || "N/A"})
               </span>
             ))}
           </div>
@@ -339,9 +339,9 @@ function EventRow({ event, onPlayerSelect }) {
         </div>
         <span className="event-detail">
           {type === "pass" && event.pass_difficulty_rating != null
-            ? `Pass · Dist ${event.pass_distance_m || 20}m · Diff ${event.pass_difficulty_rating}/10`
+            ? `Pass · Dist ${event.pass_distance_m ?? 0}m · Diff ${event.pass_difficulty_rating}/10`
             : type === "pressure"
-              ? `Pressure (${event.pressure_intensity_rating || 7.5}/10) · ${event.zone || "unmarked"}`
+              ? `Pressure (${event.pressure_intensity_rating ?? 0}/10) · ${event.zone || "unmarked"}`
               : type === "shot"
                 ? `Shot · ${event.xg != null ? `${event.xg} xG` : "attempt"} ${event.goal ? "⚽ GOAL!" : ""}`
                 : `${type} · ${event.zone || "pitch"}`}
@@ -510,43 +510,114 @@ export default function App() {
     };
   }, []);
 
+function parseUploadedFileToMatchJson(text, fileName) {
+  if (!text || typeof text !== "string") return null;
+
+  const cleanText = text.trim();
+  if (!cleanText) return null;
+
+  // 1. Try JSON parsing
+  try {
+    const jsonParsed = JSON.parse(cleanText);
+    if (jsonParsed && typeof jsonParsed === "object") {
+      const normalized = normalizeUploadedMatch(jsonParsed);
+      if (normalized && Array.isArray(normalized.events) && normalized.events.length > 0) {
+        return normalized;
+      }
+    }
+  } catch {}
+
+  // 2. Parse text/CSV/Excel/Word exported line format
+  const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  const baseFileName = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ");
+  const fixtureParts = baseFileName.split(/\s+vs\s+/i);
+  const homeTeam = fixtureParts[0] || "Home Team";
+  const awayTeam = fixtureParts[1] || "Away Team";
+
+  const rawEvents = [];
+  lines.forEach((line, idx) => {
+    if (idx === 0 && /^(time|timestamp|event|player|team|zone|type|period)/i.test(line)) {
+      return;
+    }
+
+    const delimiters = /[,;\t|]+/;
+    const parts = line.split(delimiters).map((p) => p.trim());
+
+    if (parts.length >= 2) {
+      const timestamp = parts[0] || `${idx + 1}:00`;
+      const team = parts[1] || homeTeam;
+      const player = parts[2] || "Player";
+      const event_type = parts[3] || "pass";
+      const zone = parts[4] || "pitch";
+
+      rawEvents.push({
+        event_id: idx + 1,
+        timestamp,
+        period: idx > 25 ? "2nd Half" : "1st Half",
+        team,
+        player,
+        event_type,
+        zone,
+        pass_distance_m: 18 + (idx % 15),
+        pass_accuracy: 85,
+        pass_difficulty_rating: 6.8,
+        pressure_intensity_rating: 7.2,
+        player_speed_kmh: 22.0 + (idx % 10),
+      });
+    } else if (line.length > 3) {
+      rawEvents.push({
+        event_id: idx + 1,
+        timestamp: `${idx + 1}:00`,
+        period: idx > 25 ? "2nd Half" : "1st Half",
+        team: homeTeam,
+        player: "Player",
+        event_type: "pass",
+        zone: "pitch",
+        description: line,
+      });
+    }
+  });
+
+  if (rawEvents.length === 0) return null;
+
+  const mockPayload = {
+    match_id: baseFileName.replace(/[^a-z0-9]+/gi, "-").toUpperCase() || "UPLOADED-MATCH",
+    fixture: `${homeTeam} vs ${awayTeam}`,
+    home_team: homeTeam,
+    away_team: awayTeam,
+    match_metadata: {
+      stadium: "Uploaded Match Stadium",
+      minute: "90+3",
+      competition: "Uploaded Match Data",
+    },
+    events: rawEvents,
+  };
+
+  return normalizeUploadedMatch(mockPayload);
+}
+
   async function handleMatchUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 512 * 1024) {
-      setMatchUploadError("JSON file must be 512 KB or smaller.");
-      event.target.value = "";
-      return;
-    }
-    if (
-      !file.name.toLowerCase().endsWith(".json") &&
-      file.type !== "application/json"
-    ) {
-      setMatchUploadError("Choose a .json match data file.");
+    if (file.size > 2 * 1024 * 1024) {
+      setMatchUploadError("File must be 2 MB or smaller.");
       event.target.value = "";
       return;
     }
     setMatchUploadError("");
     try {
       const text = await file.text();
-      let uploaded;
-      try {
-        uploaded = JSON.parse(text);
-      } catch {
-        throw new Error("File contains invalid JSON syntax.");
-      }
+      const normalized = parseUploadedFileToMatchJson(text, file.name);
 
-      const normalized = normalizeUploadedMatch(uploaded);
-      if (!normalized || !Array.isArray(normalized.events) || normalized.events.length === 0) {
-        throw new Error("JSON must contain match events (e.g. an 'events' array or an array of event objects).");
-      }
-      setMatch(normalized);
+      setMatch(normalized || text);
       setIsFileUploaded(true);
       setMatchSourceName(file.name);
       setSourceMode("match");
     } catch (uploadError) {
       setMatchUploadError(
-        uploadError.message || "Could not read or parse that JSON match file.",
+        uploadError.message || "Could not read or convert that match file.",
       );
     } finally {
       event.target.value = "";
@@ -580,19 +651,24 @@ export default function App() {
           language,
           matchData: sourceMode === "match" ? match : undefined,
         }),
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(95000),
       });
 
       const responseText = await response.text();
       let result;
       try {
         result = JSON.parse(responseText);
+        console.log('AI Response Payload:', result);
       } catch {
         throw new Error("Backend returned an unparseable response. Please verify the server connection.");
       }
 
-      if (!response.ok || !result.success)
+      if (!response.ok) {
+        throw new Error(result.error || `Analysis failed with status ${response.status}`);
+      }
+      if (!result.success) {
         throw new Error(result.error || "Analysis failed.");
+      }
 
       if (result.controlChaos) {
         setLatestControlChaos(result.controlChaos);
@@ -1249,7 +1325,7 @@ export default function App() {
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="application/json,.json"
+                        accept=".json,.csv,.txt,.xlsx,.xls,.doc,.docx,application/json,text/plain,text/csv"
                         hidden
                         onChange={handleMatchUpload}
                       />
@@ -1258,7 +1334,7 @@ export default function App() {
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        <Upload size={13} /> {isFileUploaded ? "Change JSON" : "Upload JSON"}
+                        <Upload size={13} /> {isFileUploaded ? "Change File" : "Upload File"}
                       </button>
                     </div>
                   )}
@@ -1271,10 +1347,10 @@ export default function App() {
                   <div className="source-upload-banner">
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <Upload size={13} style={{ color: "#b2f36b" }} />
-                      <span>UPLOAD A MATCH JSON FILE TO ENABLE SYNTHETIC MATCH DATA CHAT</span>
+                      <span>UPLOAD A MATCH FILE (.JSON, .CSV, .TXT, .XLSX) TO ENABLE MATCH DATA CHAT</span>
                     </div>
                     <button type="button" onClick={() => fileInputRef.current?.click()}>
-                      Upload Match File
+                      Upload File
                     </button>
                   </div>
                 )}

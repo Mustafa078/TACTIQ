@@ -75,11 +75,20 @@ function sortEvents(events) {
 }
 
 function searchableText(event) {
-  return Object.entries(event)
-    .filter(([, value]) => value !== null && value !== undefined)
-    .map(([key, value]) => `${key} ${value}`)
-    .join(" ")
-    .toLocaleLowerCase();
+  function flatten(obj) {
+    let result = "";
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== null && value !== undefined) {
+        if (typeof value === "object") {
+          result += flatten(value) + " ";
+        } else {
+          result += `${key} ${value} `;
+        }
+      }
+    }
+    return result;
+  }
+  return flatten(event).toLocaleLowerCase();
 }
 
 function topicMatches(eventType, topic) {
@@ -292,21 +301,21 @@ function computeMetrics(events) {
     goals,
     expectedGoalsTotal: xgValues.length
       ? Number(xgValues.reduce((sum, value) => sum + value, 0).toFixed(2))
-      : null,
-    meanShotXg: average(xgValues),
+      : 0,
+    meanShotXg: average(xgValues) ?? 0,
     passOutcomeCompletionRate: passesWithOutcome
       ? Number(((passSuccesses / passesWithOutcome) * 100).toFixed(1))
-      : null,
-    meanReportedPassAccuracy: average(passAccuracies),
-    meanPassDistanceMeters: average(passDistances),
-    meanPassDifficulty: average(passDifficulties),
-    meanPressureRating: average(pressureRatings),
+      : 0,
+    meanReportedPassAccuracy: average(passAccuracies) ?? 0,
+    meanPassDistanceMeters: average(passDistances) ?? 0,
+    meanPassDifficulty: average(passDifficulties) ?? 0,
+    meanPressureRating: average(pressureRatings) ?? 0,
     highestPressureRating: pressureRatings.length
       ? Math.max(...pressureRatings)
-      : null,
-    maxBallSpeedKmh: speeds.length ? Math.max(...speeds) : null,
-    maxPlayerSpeedKmh: playerSpeeds.length ? Math.max(...playerSpeeds) : null,
-    maxShotSpeedKmh: shotSpeeds.length ? Math.max(...shotSpeeds) : null,
+      : 0,
+    maxBallSpeedKmh: speeds.length ? Math.max(...speeds) : 0,
+    maxPlayerSpeedKmh: playerSpeeds.length ? Math.max(...playerSpeeds) : 0,
+    maxShotSpeedKmh: shotSpeeds.length ? Math.max(...shotSpeeds) : 0,
     speedThresholdAlerts,
     controlChaosIndex: {
       controlScore,
