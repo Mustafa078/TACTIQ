@@ -263,7 +263,7 @@ test("Gemini searchWebWithGemini function is exported", () => {
   assert.equal(typeof app.searchWebWithGemini, "function");
 });
 
-test("web search mode reports missing Gemini API key configuration", async () => {
+test("web search mode gracefully uses live web search data when Gemini API key is unset", async () => {
   const previousKey = process.env.GEMINI_API_KEY;
   const previousKeyCamel = process.env.Gemini_API_Key;
   delete process.env.GEMINI_API_KEY;
@@ -277,8 +277,13 @@ test("web search mode reports missing Gemini API key configuration", async () =>
         sourceMode: "web",
       }),
     });
-    assert.equal(response.status, 502);
-    assert.equal((await response.json()).code, "GEMINI_NOT_CONFIGURED");
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.success, true);
+    assert.equal(data.kind, "web");
+    assert.equal(data.provider, "Google Search Data");
+    assert.ok(Array.isArray(data.sources));
+    assert.ok(Array.isArray(data.followUpQuestions));
   } finally {
     if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = previousKey;

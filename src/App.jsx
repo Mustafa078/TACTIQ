@@ -1424,6 +1424,8 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                                 <AnalysisCard
                                   breakdown={message.breakdown}
                                   language={message.language}
+                                  followUpQuestions={message.followUpQuestions}
+                                  onSelectQuestion={askQuestion}
                                 />
                                 {message.sources?.length > 0 && (
                                   <div className="grounded-sources-block" style={{ marginTop: "12px" }}>
