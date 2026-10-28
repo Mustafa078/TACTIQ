@@ -318,7 +318,12 @@ test("analysis endpoint accepts empty array match payloads by wrapping", async (
       matchData: [],
     }),
   });
-  assert.equal(response.status, 429);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.success, true);
+  assert.equal(data.kind, "analysis");
+  assert.ok(Array.isArray(data.breakdown) && data.breakdown.length >= 2);
+  assert.ok(data.breakdown.every((b) => b.content && !b.content.includes("Tactical analysis engine is currently unavailable")));
 });
 
 test("match normalization strips control characters and keeps only safe fields", () => {
@@ -495,4 +500,68 @@ test("tactical context links filtered events in order", () => {
   ]);
   assert.equal(context[0].next_event_id, 8);
   assert.equal(context[1].previous_event_id, 7);
+});
+
+test("generateDeterministicTacticalAnalysis includes conditions, queried player, structured headers, and follow-up questions", () => {
+  const matchData = {
+    fixture: "Arsenal vs Tottenham",
+    home_team: "Arsenal",
+    away_team: "Tottenham",
+    match_metadata: {
+      stadium: "Emirates Stadium",
+      minute: "72'",
+      competition: "Premier League",
+      pitch: "Pristine hybrid surface",
+      weather: "15°C Cool Evening",
+    },
+    events: [
+      {
+        event_id: 1,
+        timestamp: "71:10",
+        team: "Arsenal",
+        player: "Rice",
+        event_type: "pressure",
+        zone: "Central Midfield",
+        pressure_intensity_rating: 8.5,
+      },
+      {
+        event_id: 2,
+        timestamp: "71:20",
+        team: "Arsenal",
+        player: "Odegaard",
+        event_type: "pass",
+        zone: "Attacking Third",
+        pass_accuracy: 90,
+      },
+      {
+        event_id: 3,
+        timestamp: "71:35",
+        team: "Arsenal",
+        player: "Saka",
+        event_type: "shot",
+        zone: "Penalty Area",
+        xg: 0.38,
+        player_speed_kmh: 31.5,
+      },
+    ],
+  };
+
+  const result = app.generateDeterministicTacticalAnalysis({
+    userQuery: "How did Declan Rice perform under pressure?",
+    normalizedMatchData: app.normalizeMatchData(matchData),
+    filtered: { events: matchData.events },
+    metrics: computeMetrics(matchData.events),
+    tacticalContext: buildTacticalContext(matchData.events),
+    evidenceEventIds: [1, 2, 3],
+  });
+
+  // Verify player query mentions Rice
+  assert.ok(result.explain.includes("Rice"), "Analysis must mention the queried player (Rice)");
+  // Verify conditions are mentioned
+  assert.ok(/pitch|condition|surface/i.test(result.explain), "Analysis must talk about match/pitch conditions");
+  // Verify structured format with headers
+  assert.ok(result.explain.includes("### 📋 MATCH CONTEXT"), "Analysis must format summary with structured headers");
+  // Verify follow-up questions
+  assert.ok(Array.isArray(result.followUpQuestions) && result.followUpQuestions.length >= 3, "Must provide interactive follow-up questions");
+  assert.ok(result.followUpQuestions.some((q) => q.includes("Rice")), "Follow-up questions should be context-aware of queried player");
 });
