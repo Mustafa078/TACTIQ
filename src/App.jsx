@@ -335,46 +335,225 @@ function FormattedAnalysisContent({ text = "" }) {
   if (!text) return <p>No analysis available.</p>;
 
   const lines = text.split("\n");
-  const elements = [];
+  const blocks = [];
+  let currentTable = null;
 
-  lines.forEach((line, idx) => {
-    const trimmed = line.trim();
-    if (!trimmed) return;
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
 
-    if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
-      const headingText = trimmed.replace(/^#+\s*/, "");
-      elements.push(
-        <h4 key={idx} className="formatted-subhead">
-          {headingText}
-        </h4>
-      );
-    } else if (
-      trimmed.startsWith("• ") ||
-      trimmed.startsWith("- ") ||
-      trimmed.startsWith("* ")
-    ) {
-      const bulletText = trimmed.replace(/^[•\-\*]\s*/, "");
-      elements.push(
-        <div key={idx} className="formatted-bullet">
-          <span>{renderFormattedInline(bulletText)}</span>
-        </div>
-      );
-    } else {
-      elements.push(
-        <p key={idx} className="formatted-paragraph">
-          {renderFormattedInline(trimmed)}
-        </p>
-      );
+    if (!trimmed) {
+      if (currentTable) {
+        blocks.push({ type: "table", ...currentTable });
+        currentTable = null;
+      }
+      continue;
     }
-  });
 
-  return <div className="formatted-analysis">{elements}</div>;
+    // Markdown table row detection
+    const isTableRow = trimmed.startsWith("|") && trimmed.endsWith("|");
+    if (isTableRow) {
+      const cells = trimmed
+        .slice(1, -1)
+        .split("|")
+        .map((c) => c.trim());
+
+      const isSeparator = cells.every((c) => /^:?-+:?$/.test(c));
+
+      if (!currentTable) {
+        currentTable = { headers: cells, rows: [] };
+      } else if (isSeparator) {
+        continue;
+      } else {
+        currentTable.rows.push(cells);
+      }
+      continue;
+    } else if (currentTable) {
+      blocks.push({ type: "table", ...currentTable });
+      currentTable = null;
+    }
+
+    if (trimmed.startsWith("#### ")) {
+      blocks.push({ type: "h4", text: trimmed.replace(/^#+\s*/, "") });
+    } else if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+      blocks.push({ type: "h3", text: trimmed.replace(/^#+\s*/, "") });
+    } else if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      const isSub = rawLine.startsWith("  ") || rawLine.startsWith("\t");
+      blocks.push({
+        type: "bullet",
+        isSub,
+        text: trimmed.replace(/^[•\-\*]\s*/, ""),
+      });
+    } else {
+      blocks.push({ type: "p", text: trimmed });
+    }
+  }
+
+  if (currentTable) {
+    blocks.push({ type: "table", ...currentTable });
+  }
+
+  return (
+    <div className="formatted-analysis">
+      {blocks.map((block, idx) => {
+        if (block.type === "h3") {
+          return (
+            <h4 key={idx} className="formatted-subhead">
+              {block.text}
+            </h4>
+          );
+        }
+        if (block.type === "h4") {
+          return (
+            <h5 key={idx} className="formatted-subhead-h4">
+              {block.text}
+            </h5>
+          );
+        }
+        if (block.type === "table") {
+          return (
+            <div key={idx} className="table-responsive-wrapper">
+              <table className="tactiq-data-table">
+                {block.headers && block.headers.length > 0 && (
+                  <thead>
+                    <tr>
+                      {block.headers.map((h, hIdx) => (
+                        <th key={hIdx}>{renderFormattedInline(h)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
+                <tbody>
+                  {block.rows.map((row, rIdx) => (
+                    <tr key={rIdx}>
+                      {row.map((cell, cIdx) => (
+                        <td key={cIdx}>{renderFormattedInline(cell)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        if (block.type === "bullet") {
+          return (
+            <div
+              key={idx}
+              className={`formatted-bullet ${block.isSub ? "bullet-sub" : ""}`}
+            >
+              <span>{renderFormattedInline(block.text)}</span>
+            </div>
+          );
+        }
+        return (
+          <p key={idx} className="formatted-paragraph">
+            {renderFormattedInline(block.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgentDiagnosticsDisclosure({
+  controlChaos,
+  speedAlerts = [],
+  evidence = null,
+  reasoning = null,
+}) {
+  const hasDetails = Boolean(
+    controlChaos ||
+    (speedAlerts && speedAlerts.length > 0) ||
+    (evidence && evidence.eventIds && evidence.eventIds.length > 0) ||
+    reasoning
+  );
+
+  if (!hasDetails) return null;
+
+  return (
+    <details className="agent-diagnostics-disclosure">
+      <summary className="agent-diagnostics-summary">
+        <div className="summary-title-wrap">
+          <SlidersHorizontal size={13} />
+          <span>Agent Diagnostic Reasoning &amp; Telemetry</span>
+        </div>
+        <span className="summary-status-tag">CLICK TO EXPAND</span>
+      </summary>
+
+      <div className="agent-diagnostics-body">
+        {reasoning && (
+          <div className="agent-reasoning-step">
+            <span className="reasoning-label">AGENT REASONING / THOUGHT PROCESS</span>
+            <p className="reasoning-text">{reasoning}</p>
+          </div>
+        )}
+
+        {controlChaos && (
+          <div className="analysis-inline-control-chaos">
+            <div className="inline-cc-header">
+              <span>
+                <Gauge size={12} /> TACTICAL DYNAMICS: CONTROL vs CHAOS
+              </span>
+              <b>
+                {controlChaos.controlScore ?? 0}% Control / {controlChaos.chaosScore ?? 100}% Chaos
+              </b>
+            </div>
+            <div className="inline-cc-bar">
+              <div
+                className="inline-cc-fill-control"
+                style={{ width: `${controlChaos.controlScore ?? 0}%` }}
+              />
+              <div
+                className="inline-cc-fill-chaos"
+                style={{ width: `${controlChaos.chaosScore ?? 100}%` }}
+              />
+            </div>
+            {controlChaos.summary && (
+              <p className="inline-cc-summary">{controlChaos.summary}</p>
+            )}
+          </div>
+        )}
+
+        {(speedAlerts || []).length > 0 && (
+          <div className="analysis-inline-speed-alerts">
+            <div className="inline-speed-badge">
+              <Zap size={12} /> SPRINT THRESHOLD TRIGGERED (&gt;30 km/h)
+            </div>
+            <div className="inline-speed-list">
+              {speedAlerts.slice(0, 3).map((alert, i) => (
+                <span key={i} className="inline-speed-chip">
+                  <strong>{alert?.player || "Unknown"}</strong>: {alert?.speed_kmh ?? 0} km/h (E{alert?.event_id || "N/A"})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {evidence && (
+          <div className="analysis-evidence">
+            <span className={`evidence-quality quality-${evidence.quality}`}>
+              EVIDENCE {evidence.quality}
+            </span>
+            <span className="evidence-label">SOURCE EVENTS</span>
+            <div className="evidence-ids">
+              {(evidence.eventIds || []).map((eventId) => (
+                <span key={eventId}>E{eventId}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </details>
+  );
 }
 
 function AnalysisCard({
   breakdown = [],
   controlChaos = null,
   speedAlerts = [],
+  evidence = null,
+  reasoning = null,
   language = "en",
   followUpQuestions = [],
   onSelectQuestion,
@@ -415,46 +594,12 @@ function AnalysisCard({
         );
       })}
 
-      {controlChaos && (
-        <div className="analysis-inline-control-chaos">
-          <div className="inline-cc-header">
-            <span>
-              <Gauge size={12} /> TACTICAL DYNAMICS: CONTROL vs CHAOS
-            </span>
-            <b>
-              {controlChaos.controlScore ?? 0}% Control / {controlChaos.chaosScore ?? 100}% Chaos
-            </b>
-          </div>
-          <div className="inline-cc-bar">
-            <div
-              className="inline-cc-fill-control"
-              style={{ width: `${controlChaos.controlScore ?? 0}%` }}
-            />
-            <div
-              className="inline-cc-fill-chaos"
-              style={{ width: `${controlChaos.chaosScore ?? 100}%` }}
-            />
-          </div>
-          {controlChaos.summary && (
-            <p className="inline-cc-summary">{controlChaos.summary}</p>
-          )}
-        </div>
-      )}
-
-      {(speedAlerts || []).length > 0 && (
-        <div className="analysis-inline-speed-alerts">
-          <div className="inline-speed-badge">
-            <Zap size={12} /> SPRINT THRESHOLD TRIGGERED (&gt;30 km/h)
-          </div>
-          <div className="inline-speed-list">
-            {(speedAlerts || []).slice(0, 3).map((alert, i) => (
-              <span key={i} className="inline-speed-chip">
-                <strong>{alert?.player || "Unknown"}</strong>: {alert?.speed_kmh ?? 0} km/h (E{alert?.event_id || "N/A"})
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <AgentDiagnosticsDisclosure
+        controlChaos={controlChaos}
+        speedAlerts={speedAlerts}
+        evidence={evidence}
+        reasoning={reasoning}
+      />
 
       {(followUpQuestions || []).length > 0 && (
         <div className="analysis-followups">
@@ -1101,136 +1246,22 @@ The tactical analysis engine has ingested and mapped all events for this fixture
           <div className="studio-layout">
             <section className="workspace">
               <div className="workspace-heading">
-                <div>
+                <div className="workspace-heading-left">
                   <div className="eyebrow">
                     <span className="heading-star">
-                      <Sparkles size={13} />
-                    </span>{" "}
+                      <Sparkles size={12} />
+                    </span>
                     PREMIER LEAGUE STUDIO · TACTICAL DESK
                   </div>
                   <h2>
                     Every moment has a <em>pattern.</em>
                   </h2>
-                  <p>
-                    Autonomous synthetic event ingestion, tactical explainability, and multi-fan personalization.
-                  </p>
                 </div>
                 <div className="workspace-meta">
                   <span className="meta-led" /> AI ENGINE <b>AZURE OPENAI GPT-4o</b>
                 </div>
               </div>
 
-              {/* 5-STAGE SYNTHETIC INSIGHTS PIPELINE */}
-              {isFileUploaded && match ? (
-                <div className="pipeline-strip">
-                  <div className="pipeline-label">
-                    <Layers size={13} />
-                    <span>5-STAGE PIPELINE:</span>
-                  </div>
-                  <div className="pipeline-steps">
-                    {PIPELINE_STAGES.map((stg) => (
-                      <button
-                        type="button"
-                        key={stg.id}
-                        className={`pipeline-step-item ${activePipelineStage === stg.id ? "active" : ""}`}
-                        onClick={() =>
-                          setActivePipelineStage(activePipelineStage === stg.id ? null : stg.id)
-                        }
-                        title={`${stg.name}: ${stg.desc}`}
-                      >
-                        <span className="stg-num">{stg.tag}</span>
-                        <span className="stg-name">{stg.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="pipeline-upload-prompt">
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Upload size={14} style={{ color: "#b2f36b" }} />
-                    <span>5-STAGE PIPELINE LOCKED — UPLOAD A MATCH JSON FILE TO UNLOCK INSIGHTS &amp; MATCH CHAT</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="upload-prompt-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Upload Match File
-                  </button>
-                </div>
-              )}
-              {activePipelineStage && (
-                <div className="pipeline-stage-detail-callout">
-                  <div className="stage-detail-header">
-                    <div className="stage-title-wrap">
-                      <span className="stage-badge">STAGE {PIPELINE_STAGES[activePipelineStage - 1].tag}</span>
-                      <strong>{PIPELINE_STAGES[activePipelineStage - 1].name} — {PIPELINE_STAGES[activePipelineStage - 1].label}</strong>
-                    </div>
-                    <button
-                      type="button"
-                      className="stage-close-btn"
-                      onClick={() => setActivePipelineStage(null)}
-                      aria-label="Close stage details"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <p className="stage-desc">{PIPELINE_STAGES[activePipelineStage - 1].desc}</p>
-                  <div className="stage-action-row">
-                    {activePipelineStage === 1 && (
-                      <button
-                        type="button"
-                        className="stage-action-btn"
-                        onClick={() => askQuestion("Summarize the key ingested synthetic match events")}
-                      >
-                        <Radio size={13} /> Inspect Ingested Synthetic Events ({match?.events?.length || 100} events)
-                      </button>
-                    )}
-                    {activePipelineStage === 2 && (
-                      <button
-                        type="button"
-                        className="stage-action-btn"
-                        onClick={() => askQuestion("Identify players crossing high-speed sprint thresholds (>30 km/h) and pass difficulty")}
-                        disabled={loading || !match}
-                      >
-                        <Zap size={13} /> Run Pattern & Sprint Interpretation
-                      </button>
-                    )}
-                    {activePipelineStage === 3 && (
-                      <button
-                        type="button"
-                        className="stage-action-btn"
-                        onClick={() => askQuestion("Explain the Control vs Chaos balance across zones and why it matters")}
-                        disabled={loading || !match}
-                      >
-                        <Gauge size={13} /> Trigger Tactical Explainability Engine
-                      </button>
-                    )}
-                    {activePipelineStage === 4 && (
-                      <button
-                        type="button"
-                        className="stage-action-btn highlight-btn"
-                        onClick={() => setShowBroadcastOverlay(true)}
-                      >
-                        <Tv size={13} /> Launch Live Broadcast HUD Overlay
-                      </button>
-                    )}
-                    {activePipelineStage === 5 && (
-                      <button
-                        type="button"
-                        className="stage-action-btn"
-                        onClick={() => {
-                          const idx = LANGUAGES.findIndex((l) => l.code === language);
-                          const nextLang = LANGUAGES[(idx + 1) % LANGUAGES.length].code;
-                          setLanguage(nextLang);
-                        }}
-                      >
-                        <Languages size={13} /> Cycle Language ({language.toUpperCase()})
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
               <div
                 ref={conversationRef}
@@ -1515,29 +1546,11 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                                   breakdown={message.breakdown}
                                   controlChaos={message.controlChaos}
                                   speedAlerts={message.speedAlerts}
+                                  evidence={message.evidence}
                                   language={message.language}
                                   followUpQuestions={message.followUpQuestions}
                                   onSelectQuestion={askQuestion}
                                 />
-                                {message.evidence && (
-                                  <div className="analysis-evidence">
-                                    <span
-                                      className={`evidence-quality quality-${message.evidence.quality}`}
-                                    >
-                                      EVIDENCE {message.evidence.quality}
-                                    </span>
-                                    <span className="evidence-label">
-                                      SOURCE EVENTS
-                                    </span>
-                                    <div className="evidence-ids">
-                                      {message.evidence.eventIds.map(
-                                        (eventId) => (
-                                          <span key={eventId}>E{eventId}</span>
-                                        ),
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
                               </>
                             )}
                           </div>
@@ -1545,24 +1558,9 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                       </article>
                     ))}
                     {loading && (
-                      <div className="thinking">
-                        <span className="thinking-icon">
-                          <LoaderCircle size={16} className="spin" />
-                        </span>
-                        <div>
-                          <strong>Reading the game</strong>
-                          <span>
-                            Filtering events · calculating patterns · building
-                            context
-                          </span>
-                        </div>
-                        <div className="thinking-bars">
-                          <i />
-                          <i />
-                          <i />
-                          <i />
-                          <i />
-                        </div>
+                      <div className="chat-loading-compact">
+                        <LoaderCircle size={15} className="spin" />
+                        <span>TactIQ analyzing match data &amp; tactical patterns...</span>
                       </div>
                     )}
                     <div ref={bottomRef} />
@@ -1624,17 +1622,6 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                   )}
                 </div>
 
-                {sourceMode === "match" && !isFileUploaded && (
-                  <div className="source-upload-banner">
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <Upload size={13} style={{ color: "#b2f36b" }} />
-                      <span>UPLOAD A MATCH FILE (.JSON, .CSV, .TXT, .XLSX) TO ENABLE MATCH DATA CHAT</span>
-                    </div>
-                    <button type="button" onClick={() => fileInputRef.current?.click()}>
-                      Upload File
-                    </button>
-                  </div>
-                )}
 
                 {sourceMode === "match" && isFileUploaded && messages.length > 0 && (
                   <div

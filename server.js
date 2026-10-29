@@ -16,18 +16,24 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   } else {
-    // Vite dev server middleware for HMR and instant JSX bundling
+    // Vite dev server middleware without HMR websocket port conflict
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
         host: HOST,
         port: PORT,
+        hmr: false,
+        ws: false,
       },
       appType: "spa",
     });
     app.use(vite.middlewares);
   }
+
+  process.on("unhandledRejection", (reason) => {
+    console.warn("Handled promise rejection:", reason?.message || reason);
+  });
 
   return new Promise((resolve) => {
     const server = app.listen(PORT, HOST, () => {

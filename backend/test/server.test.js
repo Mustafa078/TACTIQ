@@ -18,6 +18,9 @@ before(async () => {
 });
 
 after(async () => {
+  if (typeof server.closeAllConnections === "function") {
+    server.closeAllConnections();
+  }
   await new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
@@ -566,7 +569,20 @@ test("generateDeterministicTacticalAnalysis includes conditions, queried player,
   assert.ok(/pitch|condition|surface/i.test(result.explain), "Analysis must talk about match/pitch conditions");
   // Verify structured format with headers
   assert.ok(result.explain.includes("### 📋 MATCH CONTEXT"), "Analysis must format summary with structured headers");
+  // Verify dedicated Casual Tactical Summary section
+  assert.ok(result.explain.includes("### ☕ CASUAL TACTICAL SUMMARY"), "Must include dedicated Casual Tactical Summary header");
+  assert.ok(result.explain.includes("Key Player Matrices"), "Casual Tactical Summary must include Key Player Matrices");
+  assert.ok(result.explain.includes("Tactical Takeaways"), "Casual Tactical Summary must include Tactical Takeaways");
+  assert.ok(result.explain.includes("Significant Match Fixtures"), "Casual Tactical Summary must include Significant Match Fixtures");
   // Verify follow-up questions
   assert.ok(Array.isArray(result.followUpQuestions) && result.followUpQuestions.length >= 3, "Must provide interactive follow-up questions");
   assert.ok(result.followUpQuestions.some((q) => q.includes("Rice")), "Follow-up questions should be context-aware of queried player");
+});
+
+test("web search synthesis includes dedicated Casual Tactical Summary with player matrices and fixtures", async () => {
+  const result = await app.searchWebWithGemini("Arsenal vs Real Madrid tactical match analysis");
+  assert.ok(result.answer.includes("### ☕ CASUAL TACTICAL SUMMARY"), "Web synthesis must include Casual Tactical Summary");
+  assert.ok(result.answer.includes("Key Player Matrices"), "Web synthesis must include Key Player Matrices");
+  assert.ok(result.answer.includes("Tactical Takeaways"), "Web synthesis must include Tactical Takeaways");
+  assert.ok(result.answer.includes("Significant Match Fixtures"), "Web synthesis must include Significant Match Fixtures");
 });

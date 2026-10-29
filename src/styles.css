@@ -537,33 +537,38 @@ input:focus-visible {
 }
 .workspace-heading {
   flex-shrink: 0;
-  min-height: 107px;
-  padding: 23px 50px 18px;
+  min-height: 46px;
+  padding: 8px 24px;
   border-bottom: 1px solid rgba(32, 40, 51, 0.72);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: rgba(13, 18, 26, 0.55);
+}
+.workspace-heading-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .workspace-heading .eyebrow {
   color: #93a0af;
+  margin: 0;
 }
 .heading-star {
   color: #b2f36b;
+  display: inline-flex;
 }
 .workspace-heading h2 {
-  font: 500 22px "Space Grotesk";
-  letter-spacing: -0.75px;
-  margin: 8px 0 4px;
+  font: 500 14px "Space Grotesk";
+  letter-spacing: -0.4px;
+  margin: 0;
   color: #edf0f5;
+  border-left: 1px solid #252e39;
+  padding-left: 14px;
 }
 .workspace-heading h2 em {
   color: #b2f36b;
   font-style: normal;
-}
-.workspace-heading p {
-  margin: 0;
-  color: #828d9b;
-  font-size: 10px;
 }
 .workspace-meta {
   display: flex;
@@ -573,7 +578,7 @@ input:focus-visible {
   letter-spacing: 0.7px;
   color: #8290a0;
   border: 1px solid #252e39;
-  padding: 8px 10px;
+  padding: 6px 9px;
 }
 .workspace-meta b {
   color: #c6d0dc;
@@ -711,26 +716,27 @@ input:focus-visible {
   border-color: rgba(138, 162, 124, 0.035);
 }
 .conversation.has-messages {
-  padding: 29px max(30px, calc((100% - 770px) / 2));
+  padding: 14px max(24px, calc((100% - 940px) / 2));
 }
 .message-list {
-  max-width: 770px;
+  max-width: 940px;
+  width: 100%;
   margin: 0 auto;
 }
 .message {
-  margin-bottom: 26px;
+  margin-bottom: 16px;
 }
 .user-question {
   display: flex;
   align-items: flex-start;
-  gap: 13px;
-  padding: 15px 17px;
+  gap: 12px;
+  padding: 10px 14px;
   background: #121923;
   border: 1px solid #27303d;
 }
 .user-badge {
   flex: 0 0 auto;
-  padding: 4px 5px;
+  padding: 3px 5px;
   color: #b2f36b;
   border: 1px solid #405335;
   font: 700 7px "Space Grotesk";
@@ -741,10 +747,10 @@ input:focus-visible {
   padding-top: 1px;
   color: #e5e9ef;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .assistant-answer {
-  padding: 17px 19px 16px;
+  padding: 14px 18px 14px;
   border: 1px solid #222c37;
   background: linear-gradient(
     135deg,
@@ -906,6 +912,173 @@ input:focus-visible {
   border: 1px solid #2a3541;
   padding: 3px 5px;
   font: 600 7px "Space Grotesk";
+}
+/* Interactive <details> for Agent Diagnostics & Thinking */
+.agent-diagnostics-disclosure {
+  margin-top: 14px;
+  border-top: 1px dashed rgba(44, 58, 75, 0.7);
+  padding-top: 10px;
+}
+.agent-diagnostics-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: rgba(16, 23, 33, 0.75);
+  border: 1px solid #253344;
+  border-radius: 4px;
+  color: #8c9ba9;
+  font: 600 10px "Space Grotesk", sans-serif;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  list-style: none;
+}
+.agent-diagnostics-summary::-webkit-details-marker {
+  display: none;
+}
+.agent-diagnostics-summary:hover {
+  background: #192535;
+  border-color: #3b4d63;
+  color: #c9d5e3;
+}
+.agent-diagnostics-disclosure[open] .agent-diagnostics-summary {
+  background: #14202f;
+  border-color: #435b7a;
+  color: #b2f36b;
+  margin-bottom: 10px;
+}
+.summary-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.summary-status-tag {
+  font-size: 8px;
+  font-weight: 700;
+  color: #6c7c8c;
+  background: rgba(26, 36, 48, 0.8);
+  border: 1px solid #2e3e50;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.8px;
+}
+.agent-diagnostics-disclosure[open] .summary-status-tag {
+  color: #b2f36b;
+  border-color: #3a5c2d;
+  background: #1b2e1a;
+}
+.agent-diagnostics-body {
+  padding: 12px 14px;
+  background: rgba(11, 16, 23, 0.95);
+  border: 1px solid #202b3a;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.agent-reasoning-step {
+  padding: 8px 11px;
+  background: rgba(15, 21, 30, 0.8);
+  border-left: 2px solid #5b7da8;
+  border-radius: 2px;
+}
+.reasoning-label {
+  display: block;
+  font: 700 8px "Space Grotesk", sans-serif;
+  letter-spacing: 0.8px;
+  color: #7d93af;
+  margin-bottom: 4px;
+}
+.reasoning-text {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #c3ced9;
+  margin: 0;
+}
+
+/* Structured Markdown Tables */
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 10px 0 16px;
+  border: 1px solid #253344;
+  border-radius: 5px;
+  background: rgba(13, 18, 25, 0.7);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  scrollbar-width: thin;
+  scrollbar-color: #2b394b transparent;
+}
+.tactiq-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+  line-height: 1.45;
+}
+.tactiq-data-table thead {
+  background: linear-gradient(180deg, #16202d, #111a24);
+  border-bottom: 1px solid #2d3d52;
+}
+.tactiq-data-table th {
+  padding: 9px 13px;
+  font: 700 9px "Space Grotesk", sans-serif;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #b2c2d4;
+  white-space: nowrap;
+}
+.tactiq-data-table tbody tr {
+  border-bottom: 1px solid rgba(34, 46, 61, 0.65);
+  transition: background 0.12s ease;
+}
+.tactiq-data-table tbody tr:last-child {
+  border-bottom: none;
+}
+.tactiq-data-table tbody tr:nth-child(even) {
+  background: rgba(18, 26, 36, 0.35);
+}
+.tactiq-data-table tbody tr:hover {
+  background: rgba(29, 41, 56, 0.5);
+}
+.tactiq-data-table td {
+  padding: 9px 13px;
+  color: #cbd5e1;
+  vertical-align: middle;
+}
+.tactiq-data-table td strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+.formatted-subhead-h4 {
+  font: 600 12px "Space Grotesk", sans-serif;
+  letter-spacing: -0.2px;
+  color: #dbe4ef;
+  margin: 16px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-loading-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  background: rgba(16, 22, 31, 0.9);
+  border: 1px solid #273647;
+  border-radius: 4px;
+  color: #a8b7a6;
+  font-size: 11px;
+  margin: 6px 0 16px;
+  width: fit-content;
+}
+.chat-loading-compact .spin {
+  color: #b2f36b;
+}
+.chat-loading-compact span {
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: 0.3px;
 }
 .thinking {
   display: flex;
@@ -3516,6 +3689,21 @@ body {
   color: #b2f36b;
   font-size: 10px;
   flex-shrink: 0;
+}
+.formatted-bullet.bullet-sub {
+  margin-left: 14px;
+  color: #9ab0c8;
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+.formatted-bullet.bullet-sub::before {
+  content: "▫";
+  color: #8da2bb;
+  font-size: 8px;
+}
+.formatted-bullet strong {
+  color: #f3f6fa;
+  font-weight: 700;
 }
 .citation-pill {
   display: inline-block;
