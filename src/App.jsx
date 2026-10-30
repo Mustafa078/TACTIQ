@@ -15,6 +15,7 @@ import {
   Layers,
   LoaderCircle,
   Menu,
+  Paperclip,
   Radio,
   Send,
   Shield,
@@ -1177,6 +1178,14 @@ The tactical analysis engine has ingested and mapped all events for this fixture
         <div className="studio-shell scrub-studio" ref={studioRef}>
           <header className="topbar">
             <div className="brand-lockup">
+              <button
+                type="button"
+                className="mobile-menu"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                aria-label="Toggle navigation menu"
+              >
+                <Menu size={16} />
+              </button>
               <div className="brand-mark">
                 <span>T</span>
                 <i />
@@ -1244,6 +1253,113 @@ The tactical analysis engine has ingested and mapped all events for this fixture
           </header>
 
           <div className="studio-layout">
+            <div className={`sidebar-backdrop ${sidebarOpen ? "is-open" : ""}`} onClick={() => setSidebarOpen(false)} />
+            <aside className={`match-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+              <div className="sidebar-head">
+                <div>
+                  <div className="eyebrow">
+                    <span className="live-dot" /> LIVE MATCH INTEL
+                  </div>
+                  <h1>Tactical Desk</h1>
+                </div>
+                <button
+                  type="button"
+                  className="close-sidebar"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-label="Close sidebar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="match-card">
+                <div className="match-card-top">
+                  <span>{match?.competition || "Premier League"}</span>
+                  <span>{minute}&apos;</span>
+                </div>
+                <div className="scoreboard">
+                  <div className="team">
+                    <div className="team-crest">
+                      {home.charAt(0)}
+                    </div>
+                    <span>{home}</span>
+                  </div>
+                  <div className="score">
+                    <strong>1 <b>-</b> 0</strong>
+                    <span>LIVE FEED</span>
+                  </div>
+                  <div className="team team-away">
+                    <div className="team-crest chelsea">
+                      {away.charAt(0)}
+                    </div>
+                    <span>{away}</span>
+                  </div>
+                </div>
+                <div className="match-card-bottom">
+                  <span>
+                    <Activity size={12} /> {isFileUploaded ? matchSourceName : "Sample Telemetry"}
+                  </span>
+                  <span>{events.length} events</span>
+                </div>
+              </div>
+
+              <div className="sidebar-section">
+                <div className="section-heading">
+                  <span className="eyebrow">MATCH EVENTS</span>
+                  <span className="event-count">{events.length} records</span>
+                </div>
+                <div className="event-list">
+                  {events.length === 0 ? (
+                    <div className="feed-empty">
+                      No match file uploaded. Attach a match JSON/CSV file or use Web Search mode to query live data.
+                      <button
+                        type="button"
+                        className="feed-retry"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Upload Match File
+                      </button>
+                    </div>
+                  ) : (
+                    events.slice(0, 10).map((ev, idx) => (
+                      <div key={idx} className="event-row">
+                        <div className={`event-mark ${ev.event_type === "pressure" ? "event-pressure" : ev.event_type === "shot" ? "event-shot" : ""}`}>
+                          {ev.event_type === "shot" ? <Target size={12} /> : ev.event_type === "pressure" ? <Shield size={12} /> : <Activity size={12} />}
+                        </div>
+                        <div className="event-copy">
+                          <span className="event-title">{ev.player || "Player"}</span>
+                          <span className="event-detail">{ev.description || ev.event_type || "Match action"}</span>
+                        </div>
+                        <time>{ev.timestamp || `${idx + 1}:00`}</time>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="sidebar-section">
+                <div className="insight-card">
+                  <div className="section-heading">
+                    <span className="eyebrow">CONTROL VS CHAOS</span>
+                    <Gauge size={14} className="pulse-icon" />
+                  </div>
+                  <div className="pulse-main">
+                    <span>DOMINANCE RATIO</span>
+                    <strong>{latestControlChaos?.controlScore || 68}% <small>Control</small></strong>
+                  </div>
+                  <div className="pulse-meter">
+                    <i style={{ width: `${latestControlChaos?.controlScore || 68}%` }} />
+                  </div>
+                  <p>{latestControlChaos?.summary || "Controlled positional dominance bypasses transitional chaos traps."}</p>
+                </div>
+              </div>
+
+              <div className="sidebar-foot">
+                <Globe2 size={13} className="azure-orbit" />
+                <span>GROUNDED ENGINE · <b>AZURE & GEMINI</b></span>
+              </div>
+            </aside>
+
             <section className="workspace">
               <div className="workspace-heading">
                 <div className="workspace-heading-left">
@@ -1589,64 +1705,25 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                       onClick={() => setSourceMode("match")}
                     >
                       Match data
+                      {isFileUploaded && (
+                        <span className="source-file-badge" title={matchSourceName}>
+                          • {matchSourceName}
+                        </span>
+                      )}
                     </button>
                     <button
                       type="button"
                       className={sourceMode === "web" ? "active" : ""}
                       onClick={() => setSourceMode("web")}
                     >
-                      {" "}
                       <Globe2 size={13} /> Web Search
                     </button>
                   </div>
-                  {sourceMode === "match" && (
-                    <div className="match-source-row">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".json,.csv,.txt,.xlsx,.xls,.doc,.docx,application/json,text/plain,text/csv"
-                        hidden
-                        onChange={handleMatchUpload}
-                      />
-                      <span>{isFileUploaded ? matchSourceName : "No match file uploaded"}</span>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload size={13} /> {isFileUploaded ? "Change File" : "Upload File"}
-                      </button>
-                    </div>
-                  )}
                   {matchUploadError && (
                     <div className="source-error">{matchUploadError}</div>
                   )}
                 </div>
 
-
-                {sourceMode === "match" && isFileUploaded && messages.length > 0 && (
-                  <div
-                    className="popular-questions"
-                    aria-label="Popular match questions"
-                  >
-                    <div className="popular-heading">
-                      <Sparkles size={12} /> QUICK QUESTIONS{" "}
-                      <span>COMMON MATCH ASKS</span>
-                    </div>
-                    <div className="popular-list">
-                      {commonQuestions.map((question) => (
-                        <button
-                          key={question}
-                          type="button"
-                          onClick={() => askQuestion(question)}
-                          disabled={loading || !match}
-                        >
-                          {question}
-                          <ArrowUpRight size={12} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <form
                   className="composer"
                   onSubmit={(event) => {
@@ -1654,8 +1731,28 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                     askQuestion();
                   }}
                 >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.csv,.txt,.xlsx,.xls,.doc,.docx,application/json,text/plain,text/csv"
+                    hidden
+                    onChange={handleMatchUpload}
+                  />
+                  <button
+                    type="button"
+                    className={`composer-attach-btn ${isFileUploaded ? "is-attached" : ""}`}
+                    title={
+                      isFileUploaded
+                        ? `Attached: ${matchSourceName} (Click to replace file)`
+                        : "Attach match data file (.json, .csv)"
+                    }
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label="Attach match file"
+                  >
+                    <Paperclip size={15} />
+                  </button>
                   <span className="composer-spark">
-                    <Sparkles size={17} />
+                    <Sparkles size={16} />
                   </span>
                   <input
                     ref={inputRef}

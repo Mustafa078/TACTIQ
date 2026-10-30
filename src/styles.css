@@ -168,7 +168,7 @@ input:focus-visible {
 }
 .studio-layout {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   width: 100%;
   height: calc(100vh - 65px);
   overflow: hidden;
@@ -1156,18 +1156,18 @@ input:focus-visible {
 .composer-area {
   width: min(100%, 850px);
   margin: 0 auto;
-  padding: 12px 22px 14px;
+  padding: 6px 20px 8px;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
   background: var(--bg);
 }
 .composer {
-  height: 51px;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 7px 0 14px;
+  gap: 10px;
+  padding: 0 7px 0 10px;
   border: 1px solid #313b48;
   background: #111720;
   box-shadow: 0 10px 30px #0004;
@@ -1176,9 +1176,34 @@ input:focus-visible {
 .composer:focus-within {
   border-color: #566d45;
 }
+.composer-attach-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid #2a3442;
+  background: #141b25;
+  color: #8391a3;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.composer-attach-btn:hover {
+  color: #b2f36b;
+  border-color: #4b643a;
+  background: #19231c;
+}
+.composer-attach-btn.is-attached {
+  color: #b2f36b;
+  border-color: #55753b;
+  background: #172418;
+}
 .composer-spark {
   color: #b2f36b;
   display: flex;
+  flex-shrink: 0;
 }
 .composer input {
   min-width: 0;
@@ -2184,32 +2209,16 @@ input:focus-visible {
   background: #263322;
   color: #cbeaaf;
 }
-.match-source-row {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  color: #7f8b9b;
+.source-file-badge {
+  color: #b2f36b;
   font-size: 10px;
-}
-.match-source-row span {
-  max-width: 170px;
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.match-source-row button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  border: 1px solid #334139;
-  background: #111922;
-  color: #c4cdd6;
-  padding: 0 8px;
-  cursor: pointer;
-  font-size: 10px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 5px;
 }
 .source-error {
   color: #e9a298;
@@ -2240,9 +2249,6 @@ input:focus-visible {
   .source-tabs button {
     flex: 1;
     justify-content: center;
-  }
-  .match-source-row {
-    margin-left: 0;
   }
 }
 

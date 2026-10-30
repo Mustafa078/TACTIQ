@@ -586,3 +586,70 @@ test("web search synthesis includes dedicated Casual Tactical Summary with playe
   assert.ok(result.answer.includes("Tactical Takeaways"), "Web synthesis must include Tactical Takeaways");
   assert.ok(result.answer.includes("Significant Match Fixtures"), "Web synthesis must include Significant Match Fixtures");
 });
+
+test("isStandingsQuery accurately identifies table, standings, and rankings prompts", () => {
+  assert.equal(app.isStandingsQuery("premier league ranking"), true);
+  assert.equal(app.isStandingsQuery("standings"), true);
+  assert.equal(app.isStandingsQuery("epl table"), true);
+  assert.equal(app.isStandingsQuery("current league rankings"), true);
+  assert.equal(app.isStandingsQuery("Arsenal vs Chelsea tactical breakdown"), false);
+});
+
+test("standings query routing bypasses tactical match analysis and renders clean Markdown table", async () => {
+  const result = await app.searchWebWithGemini("premier league ranking");
+  // 1. Must include clean Markdown table with Rank, Club, Matches Played, Goal Difference, Points
+  assert.ok(
+    result.answer.includes("| Rank | Club | Matches Played | Goal Difference | Points |"),
+    "Standings output must include table with Rank, Club, Matches Played, Goal Difference, Points",
+  );
+  assert.ok(result.answer.includes("Manchester City"), "Must list current league clubs (Manchester City)");
+  assert.ok(result.answer.includes("Arsenal"), "Must list current league clubs (Arsenal)");
+  assert.ok(result.answer.includes("Liverpool"), "Must list current league clubs (Liverpool)");
+
+  // 2. Verify that live stats are parsed (not hardcoded fake mock stats)
+  assert.ok(
+    result.sources.some((s) => s.domain === "espn.com" || s.domain === "bbc.com" || s.domain === "premierleague.com"),
+    "Must include live sports sources for standings",
+  );
+
+  // 3. Must NOT render Key Player Matrices, Pressing Intensity, or Broadcast Takeaway
+  assert.equal(
+    result.answer.includes("Key Player Matrices"),
+    false,
+    "Standings query must NOT render Key Player Matrices",
+  );
+  assert.equal(
+    result.answer.includes("Pressing Intensity"),
+    false,
+    "Standings query must NOT render Pressing Intensity",
+  );
+  assert.equal(
+    result.answer.includes("Broadcast Takeaway"),
+    false,
+    "Standings query must NOT render Broadcast Takeaway",
+  );
+
+  // 4. Must disambiguate from cricket / IPL
+  const sourcesText = JSON.stringify(result.sources || []).toLowerCase();
+  assert.equal(
+    /cricket|\bipl\b|indian premier league/.test(sourcesText),
+    false,
+    "Standings search sources must exclude cricket / IPL",
+  );
+});
+
+test("fetchLiveStandingsFromWeb extracts live rows with real club names, matches played, goal differences, and points", async () => {
+  const league = app.detectLeagueFromQuery("premier league table");
+  assert.equal(league.key, "premierleague");
+  assert.equal(league.espnKey, "eng.1");
+
+  const live = await app.fetchLiveStandingsFromWeb(league);
+  assert.ok(Array.isArray(live.rows), "Must return rows array");
+  assert.ok(live.rows.length >= 10, "Must return at least 10 rows for Premier League");
+  const first = live.rows[0];
+  assert.ok(first.club, "Row must have club name");
+  assert.ok(typeof first.rank === "number", "Row must have numeric rank");
+  assert.ok(typeof first.mp === "number", "Row must have numeric matches played");
+  assert.ok(typeof first.pts === "number", "Row must have numeric points");
+  assert.ok(typeof first.gd === "string", "Row must have goal difference string");
+});
