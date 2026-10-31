@@ -48,8 +48,8 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 29px;
-  background: rgba(8, 11, 16, 0.91);
+  padding: 0 32px;
+  background: rgba(8, 11, 16, 0.94);
   position: relative;
   z-index: 5;
 }
@@ -63,8 +63,9 @@ input:focus-visible {
   align-items: center;
 }
 .brand-lockup {
-  gap: 11px;
-  min-width: 245px;
+  gap: 15px;
+  min-width: 260px;
+  padding-left: 2px;
 }
 .brand-mark {
   width: 29px;
@@ -129,16 +130,28 @@ input:focus-visible {
   padding: 0 4px;
 }
 .topbar-right {
-  gap: 17px;
-  min-width: 245px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 320px;
   justify-content: flex-end;
 }
+.topbar-status-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
 .system-status {
+  display: flex;
+  align-items: center;
   gap: 7px;
   color: #8d99a8;
   font-size: 8px;
   letter-spacing: 1px;
   font-weight: 700;
+  white-space: nowrap;
 }
 .system-status i,
 .meta-led {
@@ -2737,14 +2750,21 @@ body {
 .language-selector-wrap {
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  padding: 3px 8px;
+  border-radius: 20px;
+  padding: 4px 12px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.language-selector-wrap:hover {
+  border-color: rgba(178, 243, 107, 0.4);
+  background: rgba(255, 255, 255, 0.07);
 }
 .lang-icon {
   color: #a3e635;
+  flex-shrink: 0;
 }
 .language-select {
   background: transparent;
@@ -2755,6 +2775,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   outline: none;
+  padding-right: 2px;
 }
 .language-select option {
   background: #0f172a;
@@ -2768,12 +2789,50 @@ body {
   border: 1px solid rgba(225, 29, 72, 0.4);
   color: #fda4af;
   border-radius: 6px;
-  padding: 5px 10px;
+  padding: 5px 11px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.broadcast-hud-btn:hover,
+.broadcast-hud-btn.active {
+  background: #e11d48;
+  color: #fff;
+  border-color: #f43f5e;
+  box-shadow: 0 0 14px rgba(225, 29, 72, 0.5);
+}
+
+/* Out of Scope Guardrail Notification */
+.badge-scope-notice {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-style: normal;
+}
+.out-of-scope-notice-card {
+  border-left: 3px solid #f59e0b !important;
+  background: rgba(245, 158, 11, 0.05) !important;
+}
+.out-of-scope-message-text {
+  font-size: 13.5px !important;
+  color: #f8fafc !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+.out-of-scope-suggestions-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .broadcast-hud-btn:hover,
 .broadcast-hud-btn.active {
@@ -3778,4 +3837,225 @@ body {
 }
 .followup-chip:hover svg {
   color: #b2f36b;
+}
+
+/* ==========================================================================
+   RESPONSIVE DATA TABLES & HORIZONTAL SCROLL HANDLING
+   ========================================================================== */
+.table-responsive-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 12px 0 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 15, 24, 0.88);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+.table-responsive-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.table-responsive-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+.table-responsive-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(178, 243, 107, 0.35);
+  border-radius: 3px;
+}
+.table-responsive-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(178, 243, 107, 0.65);
+}
+
+.tactiq-data-table {
+  width: 100%;
+  min-width: 580px; /* Prevents squishing columns; triggers clean horizontal scroll */
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.tactiq-data-table thead {
+  background: rgba(18, 26, 38, 0.98);
+}
+.tactiq-data-table th {
+  color: #b2f36b;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(178, 243, 107, 0.25);
+  white-space: nowrap;
+}
+.tactiq-data-table td {
+  padding: 9px 14px;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+.tactiq-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.tactiq-data-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.035);
+}
+.tactiq-data-table td strong {
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.formatted-subhead-h4 {
+  font: 700 11px "Space Grotesk", sans-serif;
+  letter-spacing: 0.6px;
+  color: #38bdf8;
+  margin: 14px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   MOBILE & NARROW VIEWPORT COMPREHENSIVE RESPONSIVENESS
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .topbar {
+    padding: 0 20px;
+  }
+  .match-sidebar {
+    flex-basis: 260px;
+  }
+  .hud-tactical-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 840px) {
+  .studio-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 65px);
+    overflow: visible;
+  }
+  .match-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: 380px;
+    border-right: none;
+    border-bottom: 1px solid #1c242e;
+    overflow-y: auto;
+  }
+  .workspace {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 500px;
+    overflow: visible;
+    width: 100%;
+    max-width: 100%;
+  }
+  .topbar {
+    padding: 8px 16px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    gap: 8px;
+  }
+  .topbar-right {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar-status-group {
+    padding-left: 8px;
+    gap: 8px;
+  }
+  .conversation.has-messages {
+    padding: 14px 14px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .message-list {
+    max-width: 100%;
+    width: 100%;
+  }
+  .message {
+    width: 100%;
+    max-width: 100%;
+  }
+  .assistant-answer {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar-center {
+    display: none;
+  }
+  .brand-lockup {
+    min-width: 0;
+    gap: 8px;
+  }
+  .brand-name {
+    font-size: 17px;
+  }
+  .brand-name small {
+    display: none;
+  }
+  .mobile-menu {
+    display: grid;
+    width: 29px;
+    height: 29px;
+  }
+  .conversation.has-messages {
+    padding: 10px 8px;
+  }
+  .assistant-answer {
+    padding: 10px 10px;
+  }
+  .user-question {
+    max-width: 90%;
+    padding: 9px 12px;
+  }
+  .table-responsive-wrapper {
+    margin: 8px 0 12px;
+  }
+  .tactiq-data-table {
+    min-width: 520px;
+    font-size: 10px;
+  }
+  .tactiq-data-table th,
+  .tactiq-data-table td {
+    padding: 7px 10px;
+  }
+  .web-source-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .composer {
+    padding: 8px 10px;
+  }
+  .composer-foot {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .pipeline-strip {
+    padding: 6px 12px;
+    gap: 6px;
+  }
+  .pipeline-step-item {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .hud-content {
+    padding: 12px;
+  }
+  .hud-scorebug {
+    flex-wrap: wrap;
+  }
 }

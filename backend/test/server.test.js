@@ -653,3 +653,127 @@ test("fetchLiveStandingsFromWeb extracts live rows with real club names, matches
   assert.ok(typeof first.pts === "number", "Row must have numeric points");
   assert.ok(typeof first.gd === "string", "Row must have goal difference string");
 });
+
+test("extractClubsFromText prevents sub-token collision between Inter Milan and AC Milan", () => {
+  const clubs = app.extractClubsFromText("Inter Milan vs Juventus");
+  assert.equal(clubs.length, 2);
+  assert.equal(clubs[0].name, "Inter Milan");
+  assert.equal(clubs[1].name, "Juventus");
+  assert.equal(clubs.some((c) => c.name === "AC Milan"), false);
+});
+
+test("synthesizes accurate match matchup without swapping or hallucinating rival club names", async () => {
+  const result = await app.searchWebWithGemini("Inter Milan vs Juventus tactical match analysis");
+  assert.ok(result.answer.includes("Inter Milan vs Juventus"), "Must strictly preserve Inter Milan vs Juventus matchup");
+  assert.equal(
+    result.answer.includes("Inter Milan vs AC Milan"),
+    false,
+    "Must NOT hallucinate Inter Milan vs AC Milan",
+  );
+});
+
+test("strict out-of-scope guardrail intercepts non-football prompts", async () => {
+  assert.equal(app.isOutOfScopeQuery("What is the best recipe for pasta?"), true);
+  assert.equal(app.isOutOfScopeQuery("How do I fix a leaking bathroom faucet?"), true);
+  assert.equal(app.isOutOfScopeQuery("Write python code for bubble sort"), true);
+  assert.equal(app.isOutOfScopeQuery("premier league table"), false);
+  assert.equal(app.isOutOfScopeQuery("Inter Milan vs Juventus"), false);
+  assert.equal(app.isOutOfScopeQuery("hello"), false);
+
+  const res = await fetch(`${baseUrl}/api/analyze-match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userQuery: "What is the best recipe for pasta?",
+      sourceMode: "web",
+    }),
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.kind, "out_of_scope");
+  assert.ok(
+    data.answer.includes("Out of Scope: TactIQ only analyzes football matches, standings, and player statistics"),
+    "Must return friendly out-of-scope message",
+  );
+});
+
+test("search source labels are genuine titles without static query appendages", async () => {
+  const result = await app.searchWebWithGemini("Arsenal vs Chelsea");
+  for (const src of result.sources || []) {
+    assert.equal(
+      src.title.includes("— Official Match Fixtures & Live Standings"),
+      false,
+      "Source title must NOT append static query string",
+    );
+  }
+});
+
+test("disambiguateVagueQuery targets marquee fixture for vague prompts", () => {
+  const disambiguated = app.disambiguateVagueQuery("match highlights and stats");
+  assert.ok(
+    disambiguated.includes("Manchester City vs Arsenal"),
+    "Must target marquee fixture for vague match highlights and stats",
+  );
+  // Specific query should remain untouched
+  assert.equal(
+    app.disambiguateVagueQuery("Inter Milan vs Juventus"),
+    "Inter Milan vs Juventus",
+  );
+});
+
+test("vague search query resolves to marquee fixture without generic wikipedia pages", async () => {
+  const result = await app.searchWebWithGemini("match highlights and stats");
+  assert.ok(
+    result.answer.includes("Manchester City vs Arsenal"),
+    "Must synthesize marquee fixture for vague query",
+  );
+  for (const src of result.sources || []) {
+    assert.equal(
+      src.domain.includes("wikipedia.org"),
+      false,
+      "Must not include wikipedia.org for live fixture highlights",
+    );
+  }
+});
+
+test("strikers/forwards are never assigned rest-defense block anchor duties", async () => {
+  const result = await app.searchWebWithGemini("Manchester City vs Real Madrid");
+  // If Haaland or Mbappe is in the analysis, they must NOT be assigned rest-defense duties
+  const lines = result.answer.split("\n");
+  for (const line of lines) {
+    if (/haaland|mbapp[eé]|kane|lewandowski/i.test(line)) {
+      assert.equal(
+        /rest-defense block anchor|defensive structural/i.test(line),
+        false,
+        "Strikers must never be assigned rest-defense block anchor",
+      );
+    }
+  }
+});
+
+test("match tempo is measured in tactical units (passes/min or PPDA) rather than sprint speed in km/h", async () => {
+  const result = await app.searchWebWithGemini("Barcelona vs Bayern Munich");
+  assert.ok(
+    /passes\/min|ppda/i.test(result.answer),
+    "Match tempo must include passes per minute or PPDA",
+  );
+  assert.equal(
+    /ambient match tempo measured at \d+\.\d+ km\/h/i.test(result.answer),
+    false,
+    "Match tempo must not be measured in km/h",
+  );
+});
+
+test("live match highlight queries strictly exclude wikipedia.org", async () => {
+  const result = await app.searchWebWithGemini("Liverpool vs Chelsea match highlights");
+  for (const src of result.sources || []) {
+    assert.equal(
+      src.domain.includes("wikipedia.org"),
+      false,
+      "Live match highlight sources must strictly exclude wikipedia.org",
+    );
+  }
+});
+
+

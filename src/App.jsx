@@ -697,7 +697,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sourceMode, setSourceMode] = useState("match");
+  const [sourceMode, setSourceMode] = useState("web");
   const [matchSourceName, setMatchSourceName] = useState("No file uploaded");
   const [matchUploadError, setMatchUploadError] = useState("");
   const [language, setLanguage] = useState("en");
@@ -1222,32 +1222,34 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                 </select>
               </div>
 
-              <button
-                type="button"
-                className={`broadcast-hud-btn ${showBroadcastOverlay ? "active" : ""}`}
-                onClick={() => setShowBroadcastOverlay((prev) => !prev)}
-                title="Toggle Broadcast Studio Graphic HUD"
-              >
-                <Tv size={13} />
-                <span>{showBroadcastOverlay ? "EXIT HUD" : "BROADCAST HUD"}</span>
-              </button>
+              <div className="topbar-status-group">
+                <button
+                  type="button"
+                  className={`broadcast-hud-btn ${showBroadcastOverlay ? "active" : ""}`}
+                  onClick={() => setShowBroadcastOverlay((prev) => !prev)}
+                  title="Toggle Broadcast Studio Graphic HUD"
+                >
+                  <Tv size={13} />
+                  <span>{showBroadcastOverlay ? "EXIT HUD" : "BROADCAST HUD"}</span>
+                </button>
 
-              <span className="system-status">
-                <i
-                  className={
-                    matchError
-                      ? "status-error"
-                      : matchLoading
-                        ? "status-loading"
-                        : ""
-                  }
-                />
-                {matchError
-                  ? "API OFFLINE"
-                  : matchLoading
-                    ? "CONNECTING"
-                    : "SYSTEM ONLINE"}
-              </span>
+                <span className="system-status">
+                  <i
+                    className={
+                      matchError
+                        ? "status-error"
+                        : matchLoading
+                          ? "status-loading"
+                          : ""
+                    }
+                  />
+                  {matchError
+                    ? "API OFFLINE"
+                    : matchLoading
+                      ? "CONNECTING"
+                      : "SYSTEM ONLINE"}
+                </span>
+              </div>
               <span className="avatar">TS</span>
             </div>
           </header>
@@ -1559,9 +1561,45 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                           </div>
                         ) : (
                           <div
-                            className={`assistant-answer ${message.kind === "general" ? "assistant-general" : ""}`}
+                            className={`assistant-answer ${message.kind === "general" ? "assistant-general" : ""} ${message.kind === "out_of_scope" ? "assistant-out-of-scope" : ""}`}
                           >
-                            {message.kind === "web" && message.breakdown ? (
+                            {message.kind === "out_of_scope" ? (
+                              <>
+                                <div className="answer-brand">
+                                  <span className="mini-mark">T</span>
+                                  <span>TACTIQ INTELLIGENCE</span>
+                                  <i className="badge-scope-notice">OUT OF SCOPE</i>
+                                </div>
+                                <div className="general-answer out-of-scope-notice-card">
+                                  <div className="general-answer-body">
+                                    <div className="answer-text-content">
+                                      <p className="out-of-scope-message-text">{message.answer}</p>
+                                    </div>
+                                    {message.followUpQuestions?.length > 0 && (
+                                      <div className="out-of-scope-suggestions-wrap">
+                                        <div className="sources-label">
+                                          <Sparkles size={12} />
+                                          <span>EXPLORE FOOTBALL INTELLIGENCE INSTEAD:</span>
+                                        </div>
+                                        <div className="suggestion-list">
+                                          {message.followUpQuestions.map((q, idx) => (
+                                            <button
+                                              key={q}
+                                              type="button"
+                                              onClick={() => askQuestion(q)}
+                                            >
+                                              <span className="suggestion-index">0{idx + 1}</span>
+                                              {q}
+                                              <ArrowUpRight size={14} />
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            ) : message.kind === "web" && message.breakdown ? (
                               <>
                                 <div className="answer-brand">
                                   <span className="mini-mark">T</span>
