@@ -22,6 +22,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: false,
+        ws: false,
       },
       appType: "spa",
     });
@@ -41,6 +42,15 @@ async function startServer() {
       console.log(`TactIQ Match Intelligence Studio running on http://${HOST}:${PORT}`);
       resolve(server);
     });
+
+    const gracefulClose = () => {
+      server.close(() => {
+        process.exit(0);
+      });
+    };
+    process.once("SIGTERM", gracefulClose);
+    process.once("SIGINT", gracefulClose);
+
     server.on("error", (err) => {
       console.error("Server error:", err);
       reject(err);
