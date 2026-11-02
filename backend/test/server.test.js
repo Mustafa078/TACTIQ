@@ -776,4 +776,113 @@ test("live match highlight queries strictly exclude wikipedia.org", async () => 
   }
 });
 
+test("detectLeagueFromQuery dynamically recognizes leagues from queried team names", () => {
+  const laLigaMatch = app.detectLeagueFromQuery("Real Madrid vs Barcelona");
+  assert.equal(laLigaMatch.key, "laliga", "Real Madrid vs Barcelona must be recognized as La Liga");
+
+  const serieAMatch = app.detectLeagueFromQuery("Inter Milan vs Juventus");
+  assert.equal(serieAMatch.key, "seriea", "Inter Milan vs Juventus must be recognized as Serie A");
+
+  const bundesligaMatch = app.detectLeagueFromQuery("Bayern Munich vs Borussia Dortmund");
+  assert.equal(bundesligaMatch.key, "bundesliga", "Bayern vs Dortmund must be recognized as Bundesliga");
+
+  const ligue1Match = app.detectLeagueFromQuery("Paris Saint-Germain vs Monaco");
+  assert.equal(ligue1Match.key, "ligue1", "PSG vs Monaco must be recognized as Ligue 1");
+
+  const uclMatch = app.detectLeagueFromQuery("Real Madrid vs Manchester City");
+  assert.equal(uclMatch.key, "ucl", "Cross-league matchup must be recognized as Champions League");
+
+  const plMatch = app.detectLeagueFromQuery("Arsenal vs Chelsea");
+  assert.equal(plMatch.key, "premierleague", "Arsenal vs Chelsea must be recognized as Premier League");
+});
+
+test("fetchLiveWebSearchData dynamically excludes premierleague.com and wikipedia.org for non-Premier League matches", async () => {
+  const laLigaSources = await app.fetchLiveWebSearchData("Real Madrid vs Barcelona");
+  assert.ok(Array.isArray(laLigaSources) && laLigaSources.length > 0, "Must return sources for La Liga match");
+
+  for (const src of laLigaSources) {
+    assert.equal(
+      src.domain?.includes("premierleague.com"),
+      false,
+      "Non-Premier League match (Real Madrid vs Barcelona) must NOT pull from premierleague.com",
+    );
+    assert.equal(
+      src.domain?.includes("wikipedia.org"),
+      false,
+      "Live match search must strictly exclude wikipedia.org",
+    );
+  }
+
+  // Must include broader global football sources (like Marca, LaLiga, ESPN, SofaScore, or Opta)
+  const domains = laLigaSources.map((s) => s.domain);
+  const hasGlobalOrSpanishSource = domains.some((d) =>
+    ["marca.com", "laliga.com", "espn.com", "sofascore.com", "theanalyst.com"].includes(d),
+  );
+  assert.ok(
+    hasGlobalOrSpanishSource,
+    `La Liga sources must include global or Spanish football domains, received: ${domains.join(", ")}`,
+  );
+});
+
+test("strict out-of-scope guardrail halts on basketball queries without rendering match tables", async () => {
+  assert.equal(app.isOutOfScopeQuery("What are the rules of basketball?"), true);
+  assert.equal(app.isOutOfScopeQuery("rules of basketball"), true);
+  assert.equal(app.isOutOfScopeQuery("Who won the NBA finals?"), true);
+
+  const res = await fetch(`${baseUrl}/api/analyze-match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userQuery: "What are the rules of basketball?",
+      sourceMode: "web",
+    }),
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.kind, "out_of_scope");
+  assert.ok(
+    data.answer.includes("Out of Scope: TactIQ only analyzes football matches, standings, and player statistics"),
+  );
+  // Ensure no match/fixture tables or tactical analysis breakdowns are returned
+  const content = JSON.stringify(data);
+  assert.equal(content.includes("Home Team"), false);
+  assert.equal(content.includes("Etihad Stadium"), false);
+  assert.equal(content.includes("Match Tempo"), false);
+});
+
+test("detectPlayerProfileQuery routes individual player analysis to player profile template", async () => {
+  const profile = app.detectPlayerProfileQuery("Analyze Cole Palmer");
+  assert.ok(profile, "Must detect Cole Palmer as player profile");
+  assert.equal(profile.name, "Cole Palmer");
+  assert.equal(profile.team, "Chelsea");
+
+  const searchResult = await app.searchWebWithGemini("Analyze Cole Palmer");
+  assert.equal(searchResult.kind, "player_profile");
+  assert.ok(searchResult.playerProfile, "Must include playerProfile object");
+  assert.equal(searchResult.playerProfile.name, "Cole Palmer");
+  assert.ok(searchResult.playerProfile.stats, "Must include season statistics");
+  assert.ok(searchResult.playerProfile.stats.goals, "Must have season goals");
+
+  // Ensure match analysis tables are completely bypassed
+  const profileJson = JSON.stringify(searchResult);
+  assert.equal(profileJson.includes("Home Team vs Away Team"), false);
+  assert.equal(profileJson.includes("Etihad Stadium"), false);
+  assert.equal(profileJson.includes("Match Tempo"), false);
+
+  const apiRes = await fetch(`${baseUrl}/api/analyze-match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userQuery: "Analyze Cole Palmer",
+      sourceMode: "web",
+    }),
+  });
+  assert.equal(apiRes.status, 200);
+  const apiData = await apiRes.json();
+  assert.equal(apiData.kind, "player_profile");
+  assert.ok(apiData.playerProfile);
+});
+
+
 

@@ -1,8 +1,8 @@
 const path = require("node:path");
 const app = require("./backend/server");
 
-const PORT = 3000;
-const HOST = "0.0.0.0";
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const HOST = process.env.HOST || "0.0.0.0";
 
 async function startServer() {
   const isProduction = process.env.NODE_ENV === "production";
@@ -21,10 +21,7 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        host: HOST,
-        port: PORT,
         hmr: false,
-        ws: false,
       },
       appType: "spa",
     });
@@ -35,10 +32,18 @@ async function startServer() {
     console.warn("Handled promise rejection:", reason?.message || reason);
   });
 
-  return new Promise((resolve) => {
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught exception:", err?.message || err);
+  });
+
+  return new Promise((resolve, reject) => {
     const server = app.listen(PORT, HOST, () => {
       console.log(`TactIQ Match Intelligence Studio running on http://${HOST}:${PORT}`);
       resolve(server);
+    });
+    server.on("error", (err) => {
+      console.error("Server error:", err);
+      reject(err);
     });
   });
 }

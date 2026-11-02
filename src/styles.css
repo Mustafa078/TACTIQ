@@ -21,7 +21,7 @@
 }
 body {
   margin: 0;
-  min-width: 360px;
+  min-width: 0;
   min-height: 100vh;
 }
 button,
@@ -38,7 +38,10 @@ input:focus-visible {
 }
 .studio-shell {
   height: 100vh;
-  min-height: 650px;
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: radial-gradient(ellipse at 70% 42%, #111923 0, #080b10 53%);
 }
@@ -64,7 +67,7 @@ input:focus-visible {
 }
 .brand-lockup {
   gap: 15px;
-  min-width: 260px;
+  min-width: 0;
   padding-left: 2px;
 }
 .brand-mark {
@@ -133,7 +136,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-width: 320px;
+  min-width: 0;
   justify-content: flex-end;
 }
 .topbar-status-group {
@@ -181,9 +184,10 @@ input:focus-visible {
 }
 .studio-layout {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   width: 100%;
-  height: calc(100vh - 65px);
+  flex: 1 1 0%;
+  min-height: 0;
   overflow: hidden;
 }
 .match-sidebar {
@@ -1414,20 +1418,22 @@ input:focus-visible {
 }
 @media (max-width: 680px) {
   .studio-shell {
-    min-height: 590px;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
   }
   .topbar {
-    height: 57px;
-    padding: 0 14px;
+    height: auto;
+    min-height: 57px;
+    padding: 8px 14px;
+    flex-wrap: wrap;
   }
   .brand-lockup {
     min-width: 0;
     gap: 8px;
   }
   .mobile-menu {
-    display: grid;
-    width: 29px;
-    height: 29px;
+    display: none !important;
   }
   .brand-mark {
     width: 25px;
@@ -1454,36 +1460,26 @@ input:focus-visible {
     height: 26px;
   }
   .studio-layout {
-    height: calc(100vh - 57px);
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
   .match-sidebar {
-    position: fixed;
-    top: 57px;
-    bottom: 0;
-    left: 0;
-    width: min(305px, 86vw);
-    flex-basis: auto;
-    transform: translateX(-102%);
-    transition: transform 0.22s ease;
-    box-shadow: 18px 0 45px #0007;
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    border-right: none !important;
+    border-bottom: 1px solid #1c242e !important;
+    box-shadow: none !important;
   }
-  .match-sidebar.sidebar-open {
-    transform: translateX(0);
-  }
-  .sidebar-backdrop.is-open {
-    display: block;
-    position: fixed;
-    z-index: 2;
-    inset: 57px 0 0;
-    background: #0009;
-  }
-  .close-sidebar {
-    display: grid;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 27px;
-    height: 27px;
+  .sidebar-backdrop, .close-sidebar {
+    display: none !important;
   }
   .sidebar-head {
     padding-right: 35px;
@@ -3870,7 +3866,6 @@ body {
 
 .tactiq-data-table {
   width: 100%;
-  min-width: 580px; /* Prevents squishing columns; triggers clean horizontal scroll */
   border-collapse: collapse;
   text-align: left;
   font-size: 11px;
@@ -3925,43 +3920,75 @@ body {
   .topbar {
     padding: 0 20px;
   }
-  .match-sidebar {
-    flex-basis: 260px;
-  }
   .hud-tactical-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 840px) {
-  .studio-layout {
-    flex-direction: column;
-    height: auto;
-    min-height: calc(100vh - 65px);
-    overflow: visible;
+@media (max-width: 768px) {
+  .studio-shell {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
-  .match-sidebar {
-    flex: 0 0 auto;
-    width: 100%;
-    max-height: 380px;
-    border-right: none;
-    border-bottom: 1px solid #1c242e;
-    overflow-y: auto;
+  .studio-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
   }
   .workspace {
-    flex: 1 1 auto;
-    height: auto;
-    min-height: 500px;
-    overflow: visible;
-    width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .workspace-heading {
+    padding: 6px 14px;
+    min-height: 40px;
+  }
+  .workspace-heading h2 {
+    display: none;
+  }
+  .workspace-meta {
+    font-size: 8px;
+  }
+  .conversation {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .conversation.has-messages {
+    padding: 10px 10px;
     max-width: 100%;
+    box-sizing: border-box;
   }
   .topbar {
-    padding: 8px 16px;
+    padding: 8px 14px;
     flex-wrap: wrap;
     height: auto;
-    min-height: 60px;
+    min-height: 52px;
     gap: 8px;
+    flex-shrink: 0;
+  }
+  .topbar-center {
+    display: none;
   }
   .topbar-right {
     min-width: 0;
@@ -3969,93 +3996,364 @@ body {
     gap: 8px;
   }
   .topbar-status-group {
-    padding-left: 8px;
-    gap: 8px;
-  }
-  .conversation.has-messages {
-    padding: 14px 14px;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-  .message-list {
-    max-width: 100%;
-    width: 100%;
-  }
-  .message {
-    width: 100%;
-    max-width: 100%;
-  }
-  .assistant-answer {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    padding: 12px 14px;
-  }
-}
-
-@media (max-width: 640px) {
-  .topbar-center {
-    display: none;
+    padding-left: 6px;
+    gap: 6px;
   }
   .brand-lockup {
     min-width: 0;
     gap: 8px;
   }
   .brand-name {
-    font-size: 17px;
+    font-size: 16px;
   }
   .brand-name small {
     display: none;
   }
-  .mobile-menu {
-    display: grid;
-    width: 29px;
-    height: 29px;
-  }
-  .conversation.has-messages {
-    padding: 10px 8px;
+  .message-list,
+  .message,
+  .assistant-answer,
+  .user-question,
+  .general-answer,
+  .analysis-step,
+  .step-copy {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
   }
   .assistant-answer {
     padding: 10px 10px;
   }
   .user-question {
-    max-width: 90%;
-    padding: 9px 12px;
+    max-width: 92%;
+    padding: 8px 12px;
   }
+
+  /* Vertical Manner for Standings & Data Tables (Zero Horizontal Scroll) */
   .table-responsive-wrapper {
-    margin: 8px 0 12px;
+    margin: 8px 0 12px !important;
+    overflow-x: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
   .tactiq-data-table {
-    min-width: 520px;
-    font-size: 10px;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    border: none !important;
   }
-  .tactiq-data-table th,
+  .tactiq-data-table thead {
+    display: none !important;
+  }
+  .tactiq-data-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .tactiq-data-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: rgba(16, 23, 33, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-left: 3px solid #b2f36b !important;
+    border-radius: 6px !important;
+    padding: 9px 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    gap: 4px !important;
+  }
   .tactiq-data-table td {
-    padding: 7px 10px;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    font-size: 11px !important;
+    gap: 10px !important;
   }
+  .tactiq-data-table td:last-child {
+    border-bottom: none !important;
+  }
+  .tactiq-data-table td::before {
+    content: attr(data-label);
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    color: #8da0b6 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    flex-shrink: 0 !important;
+  }
+
   .web-source-grid {
     grid-template-columns: 1fr;
     gap: 6px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Fixed Bottom Composer (Never Disappears After Reply) */
+  .composer-area {
+    flex-shrink: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 6px 10px 10px !important;
+    background: #080b10 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    position: relative !important;
+    z-index: 25 !important;
   }
   .composer {
-    padding: 8px 10px;
+    padding: 6px 10px;
+    height: 44px;
+    gap: 6px;
+  }
+  .composer-shortcut {
+    display: none;
   }
   .composer-foot {
     flex-wrap: wrap;
     gap: 4px;
+    font-size: 7px;
   }
   .pipeline-strip {
-    padding: 6px 12px;
-    gap: 6px;
+    padding: 6px 10px;
+    gap: 4px;
+    flex-wrap: wrap;
   }
   .pipeline-step-item {
-    padding: 4px 8px;
-    font-size: 10px;
+    padding: 3px 6px;
+    font-size: 9px;
   }
   .hud-content {
-    padding: 12px;
+    padding: 10px;
   }
   .hud-scorebug {
     flex-wrap: wrap;
   }
 }
+
+/* ==========================================================================
+   TactIQ Player Profile Dedicated UI Card & Stat Ribbon
+   ========================================================================== */
+
+.badge-player-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(14, 165, 233, 0.16);
+  border: 1px solid rgba(14, 165, 233, 0.45);
+  color: #38bdf8;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.player-hero-card {
+  margin: 12px 0 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 14, 26, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.player-hero-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.player-avatar-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.08));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.player-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.player-name {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.player-season-badge {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #94a3b8;
+}
+
+.player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.player-club-tag {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.player-meta-dot {
+  color: #475569;
+}
+
+.player-league-tag {
+  color: #38bdf8;
+  font-weight: 500;
+}
+
+.player-role-tag {
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Season Stat Ribbon */
+.player-stat-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stat-ribbon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.stat-ribbon-val {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: #f1f5f9;
+}
+
+.stat-ribbon-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Tactical Attributes Grid */
+.player-tactical-attributes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.player-attr-pill {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player-attr-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.player-attr-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.player-attr-rating {
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.player-attr-highlight {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .player-hero-card {
+    padding: 12px;
+    gap: 10px;
+  }
+  .player-stat-ribbon {
+    grid-template-columns: repeat(4, 1fr);
+    overflow-x: auto;
+    padding: 8px;
+  }
+  .player-tactical-attributes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

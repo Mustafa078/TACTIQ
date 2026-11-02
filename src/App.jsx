@@ -14,7 +14,6 @@ import {
   Languages,
   Layers,
   LoaderCircle,
-  Menu,
   Paperclip,
   Radio,
   Send,
@@ -25,6 +24,7 @@ import {
   TrendingUp,
   Tv,
   Upload,
+  User,
   UserCheck,
   X,
   Zap,
@@ -33,6 +33,9 @@ import {
 const stepMeta = {
   explain: { label: "Explain", icon: Activity, color: "amber" },
   synthesize: { label: "Takeaway", icon: AudioLines, color: "green" },
+  tactical_role: { label: "Tactical Role & Pitch Geometry", icon: Target, color: "blue" },
+  statistical_output: { label: "Season Performance & Output", icon: TrendingUp, color: "amber" },
+  scouting_profile: { label: "Scouting Radar & Elite Strengths", icon: Shield, color: "green" },
 };
 
 const LANGUAGES = [
@@ -428,7 +431,9 @@ function FormattedAnalysisContent({ text = "" }) {
                   {block.rows.map((row, rIdx) => (
                     <tr key={rIdx}>
                       {row.map((cell, cIdx) => (
-                        <td key={cIdx}>{renderFormattedInline(cell)}</td>
+                        <td key={cIdx} data-label={block.headers?.[cIdx] || ""}>
+                          {renderFormattedInline(cell)}
+                        </td>
                       ))}
                     </tr>
                   ))}
@@ -696,7 +701,6 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sourceMode, setSourceMode] = useState("web");
   const [matchSourceName, setMatchSourceName] = useState("No file uploaded");
   const [matchUploadError, setMatchUploadError] = useState("");
@@ -714,15 +718,6 @@ export default function App() {
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
   const conversationRef = useRef(null);
-
-  useEffect(() => {
-    const conversation = conversationRef.current;
-    if (!conversation) return;
-    conversation.scrollTo({
-      top: conversation.scrollHeight,
-      behavior: messages.length > 1 ? "smooth" : "auto",
-    });
-  }, [messages, loading]);
 
   useEffect(() => {
     const conversation = conversationRef.current;
@@ -1051,7 +1046,6 @@ The tactical analysis engine has ingested and mapped all events for this fixture
 
     setError("");
     setQuery("");
-    setSidebarOpen(false);
     setMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), role: "user", text },
@@ -1105,6 +1099,7 @@ The tactical analysis engine has ingested and mapped all events for this fixture
           role: "assistant",
           kind: result.kind,
           answer: result.answer,
+          playerProfile: result.playerProfile,
           sources: result.sources,
           breakdown: result.breakdown,
           evidence: result.evidence,
@@ -1178,14 +1173,6 @@ The tactical analysis engine has ingested and mapped all events for this fixture
         <div className="studio-shell scrub-studio" ref={studioRef}>
           <header className="topbar">
             <div className="brand-lockup">
-              <button
-                type="button"
-                className="mobile-menu"
-                onClick={() => setSidebarOpen((prev) => !prev)}
-                aria-label="Toggle navigation menu"
-              >
-                <Menu size={16} />
-              </button>
               <div className="brand-mark">
                 <span>T</span>
                 <i />
@@ -1255,113 +1242,6 @@ The tactical analysis engine has ingested and mapped all events for this fixture
           </header>
 
           <div className="studio-layout">
-            <div className={`sidebar-backdrop ${sidebarOpen ? "is-open" : ""}`} onClick={() => setSidebarOpen(false)} />
-            <aside className={`match-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-              <div className="sidebar-head">
-                <div>
-                  <div className="eyebrow">
-                    <span className="live-dot" /> LIVE MATCH INTEL
-                  </div>
-                  <h1>Tactical Desk</h1>
-                </div>
-                <button
-                  type="button"
-                  className="close-sidebar"
-                  onClick={() => setSidebarOpen(false)}
-                  aria-label="Close sidebar"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="match-card">
-                <div className="match-card-top">
-                  <span>{match?.competition || "Premier League"}</span>
-                  <span>{minute}&apos;</span>
-                </div>
-                <div className="scoreboard">
-                  <div className="team">
-                    <div className="team-crest">
-                      {home.charAt(0)}
-                    </div>
-                    <span>{home}</span>
-                  </div>
-                  <div className="score">
-                    <strong>1 <b>-</b> 0</strong>
-                    <span>LIVE FEED</span>
-                  </div>
-                  <div className="team team-away">
-                    <div className="team-crest chelsea">
-                      {away.charAt(0)}
-                    </div>
-                    <span>{away}</span>
-                  </div>
-                </div>
-                <div className="match-card-bottom">
-                  <span>
-                    <Activity size={12} /> {isFileUploaded ? matchSourceName : "Sample Telemetry"}
-                  </span>
-                  <span>{events.length} events</span>
-                </div>
-              </div>
-
-              <div className="sidebar-section">
-                <div className="section-heading">
-                  <span className="eyebrow">MATCH EVENTS</span>
-                  <span className="event-count">{events.length} records</span>
-                </div>
-                <div className="event-list">
-                  {events.length === 0 ? (
-                    <div className="feed-empty">
-                      No match file uploaded. Attach a match JSON/CSV file or use Web Search mode to query live data.
-                      <button
-                        type="button"
-                        className="feed-retry"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Upload Match File
-                      </button>
-                    </div>
-                  ) : (
-                    events.slice(0, 10).map((ev, idx) => (
-                      <div key={idx} className="event-row">
-                        <div className={`event-mark ${ev.event_type === "pressure" ? "event-pressure" : ev.event_type === "shot" ? "event-shot" : ""}`}>
-                          {ev.event_type === "shot" ? <Target size={12} /> : ev.event_type === "pressure" ? <Shield size={12} /> : <Activity size={12} />}
-                        </div>
-                        <div className="event-copy">
-                          <span className="event-title">{ev.player || "Player"}</span>
-                          <span className="event-detail">{ev.description || ev.event_type || "Match action"}</span>
-                        </div>
-                        <time>{ev.timestamp || `${idx + 1}:00`}</time>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="sidebar-section">
-                <div className="insight-card">
-                  <div className="section-heading">
-                    <span className="eyebrow">CONTROL VS CHAOS</span>
-                    <Gauge size={14} className="pulse-icon" />
-                  </div>
-                  <div className="pulse-main">
-                    <span>DOMINANCE RATIO</span>
-                    <strong>{latestControlChaos?.controlScore || 68}% <small>Control</small></strong>
-                  </div>
-                  <div className="pulse-meter">
-                    <i style={{ width: `${latestControlChaos?.controlScore || 68}%` }} />
-                  </div>
-                  <p>{latestControlChaos?.summary || "Controlled positional dominance bypasses transitional chaos traps."}</p>
-                </div>
-              </div>
-
-              <div className="sidebar-foot">
-                <Globe2 size={13} className="azure-orbit" />
-                <span>GROUNDED ENGINE · <b>AZURE & GEMINI</b></span>
-              </div>
-            </aside>
-
             <section className="workspace">
               <div className="workspace-heading">
                 <div className="workspace-heading-left">
@@ -1598,6 +1478,144 @@ The tactical analysis engine has ingested and mapped all events for this fixture
                                     )}
                                   </div>
                                 </div>
+                              </>
+                            ) : message.kind === "player_profile" ? (
+                              <>
+                                <div className="answer-brand">
+                                  <span className="mini-mark">T</span>
+                                  <span>TACTIQ INTELLIGENCE</span>
+                                  <i className="badge-player-profile">PLAYER PROFILE</i>
+                                </div>
+
+                                <div className="player-hero-card">
+                                  <div className="player-hero-header">
+                                    <div className="player-avatar-badge">
+                                      <User size={24} />
+                                    </div>
+                                    <div className="player-identity">
+                                      <div className="player-name-row">
+                                        <h3 className="player-name">
+                                          {message.playerProfile?.name || "Player Profile"}
+                                        </h3>
+                                        <span className="player-season-badge">
+                                          {message.playerProfile?.season || "2025/26 Season"}
+                                        </span>
+                                      </div>
+                                      <div className="player-meta-row">
+                                        <span className="player-club-tag">
+                                          {message.playerProfile?.team || "Club"}
+                                        </span>
+                                        <span className="player-meta-dot">•</span>
+                                        <span className="player-league-tag">
+                                          {message.playerProfile?.league || "League"}
+                                        </span>
+                                        <span className="player-meta-dot">•</span>
+                                        <span className="player-role-tag">
+                                          {message.playerProfile?.role || "Tactical Specialist"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {message.playerProfile?.stats && (
+                                    <div className="player-stat-ribbon">
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.goals}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">GOALS</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.assists}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">ASSISTS</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.xg}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">xG</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.xa}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">xA</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.keyPassesPer90}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">KP / 90</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.passAccuracy}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">PASS %</span>
+                                      </div>
+                                      <div className="stat-ribbon-item">
+                                        <span className="stat-ribbon-val">
+                                          {message.playerProfile.stats.dribbleSuccess}
+                                        </span>
+                                        <span className="stat-ribbon-lbl">DRIBBLE %</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {message.playerProfile?.tacticalAttributes?.length > 0 && (
+                                    <div className="player-tactical-attributes-grid">
+                                      {message.playerProfile.tacticalAttributes.map((attr, idx) => (
+                                        <div key={idx} className="player-attr-pill">
+                                          <div className="player-attr-top">
+                                            <span className="player-attr-label">{attr.label}</span>
+                                            <span className="player-attr-rating">{attr.rating}</span>
+                                          </div>
+                                          <p className="player-attr-highlight">{attr.highlight}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <AnalysisCard
+                                  breakdown={message.breakdown}
+                                  language={message.language}
+                                  followUpQuestions={message.followUpQuestions}
+                                  onSelectQuestion={askQuestion}
+                                />
+
+                                {message.sources?.length > 0 && (
+                                  <div className="grounded-sources-block" style={{ marginTop: "12px" }}>
+                                    <div className="sources-label">
+                                      <Globe2 size={12} />
+                                      <span>VERIFIED SCOUTING & STATISTICAL SOURCES</span>
+                                    </div>
+                                    <div className="web-source-grid">
+                                      {message.sources.map((source, index) => (
+                                        <a
+                                          key={`${source.uri || index}-${index}`}
+                                          href={source.uri}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="web-source-card"
+                                        >
+                                          <div className="web-source-card-top">
+                                            <span className="source-domain-tag">
+                                              {source.domain || "web"}
+                                            </span>
+                                            <ExternalLink size={11} className="card-ext-icon" />
+                                          </div>
+                                          <div className="web-source-title">{source.title}</div>
+                                          {source.snippet && (
+                                            <div className="web-source-snippet">{source.snippet}</div>
+                                          )}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </>
                             ) : message.kind === "web" && message.breakdown ? (
                               <>
